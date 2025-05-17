@@ -10,6 +10,7 @@ function HandPoseTracker() {
   useEffect(() => {
     // WebSocket 연결 설정
     socket.current = connectWebSocket('ws://localhost:8000/ws', (data) => {
+      console.log(" 받은 응답:", data); 
       setRecognizedText(data.text);
     });
 
@@ -42,6 +43,7 @@ function HandPoseTracker() {
 
       // 좌표가 154개면 전송
       if (coordinates.length === 154) {
+        console.log("좌표 전송:", coordinates);
         sendCoordinates(socket.current, coordinates);
       }
     };
@@ -76,7 +78,7 @@ function HandPoseTracker() {
   return (
     <div>
       <h2>Handoc</h2>
-      <video ref={videoRef} style={{ display: 'none' }}></video>
+      <video ref={videoRef} autoPlay style={{ width: 640, height: 480 }}></video>
       <canvas ref={canvasRef} width="640" height="480" style={{ border: '1px solid black' }}></canvas>
       <div id="result" style={{ marginTop: '20px', fontSize: '20px', color: 'blue' }}>
         {recognizedText ? `수어 인식 결과: ${recognizedText}` : '수어 인식 대기 중...'}

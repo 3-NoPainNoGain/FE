@@ -6,74 +6,90 @@ function HandPoseTracker() {
   const canvasRef = useRef(null);
   const [recognizedText, setRecognizedText] = useState('');
   const socket = useRef(null);
+  const frameBuffer = useRef([]);
 
   useEffect(() => {
-    // WebSocket 연결 설정
-    socket.current = connectWebSocket('ws://localhost:8000/ws', (data) => {
-      console.log(" 받은 응답:", data); 
-      setRecognizedText(data.text);
-    });
+  socket.current = connectWebSocket('ws://localhost:8000/ws', (data) => {
+    console.log("받은 응답:", data); 
+    setRecognizedText(data.text);
+  });
 
-    const onResults = (results) => {
-      const coordinates = [];
-      // (7 pose x 4) + (21 x 3 왼손) + (21 x 3 오른손) = 154차원
-      const poseIndices = [0, 11, 12, 13, 14, 15, 16];
+  const onResults = (results) => {
+    const coordinates = [];
+    const poseIndices = [0, 11, 12, 13, 14, 15, 16];
 
-      // 상반신 포즈 좌표 수집
-      if (results.poseLandmarks) {
-        poseIndices.forEach((index) => {
-          const landmark = results.poseLandmarks[index];
-          coordinates.push(landmark.x, landmark.y, landmark.z, landmark.visibility);
-        });
+    if (results.poseLandmarks) {
+      poseIndices.forEach((index) => {
+        const lm = results.poseLandmarks[index];
+        coordinates.push(lm.x, lm.y, lm.z, lm.visibility);
+      });
+    }
+
+    if (results.leftHandLandmarks) {
+      results.leftHandLandmarks.forEach((lm) => {
+        coordinates.push(lm.x, lm.y, lm.z);
+      });
+    }
+
+    if (results.rightHandLandmarks) {
+      results.rightHandLandmarks.forEach((lm) => {
+        coordinates.push(lm.x, lm.y, lm.z);
+      });
+    }
+
+    // 부족한 좌표는 0으로 패딩
+    while (coordinates.length < 154) coordinates.push(0);
+
+   // 유효 좌표 수 확인 (디버깅용)
+    const validCount = coordinates.filter((v) => v !== 0).length;
+    if (validCount < 30) {
+      console.warn(`유효 좌표 부족: ${validCount}/154`);
+    }
+
+    //  무조건 프레임 누적
+    frameBuffer.current.push(coordinates);
+    console.log(`프레임 누적 (${frameBuffer.current.length}/30)`);
+
+    // 30개 쌓이면 전송
+    if (frameBuffer.current.length >= 30) {
+      const last30 = frameBuffer.current.slice(-30);
+      const allValidLength = last30.every((f) => f.length === 154);
+
+      if (allValidLength) {
+        console.log("30프레임 전송!");
+        sendCoordinates(socket.current, last30);
       }
 
-      // 왼손 좌표 수집
-      if (results.leftHandLandmarks) {
-        results.leftHandLandmarks.forEach((landmark) => {
-          coordinates.push(landmark.x, landmark.y, landmark.z);
-        });
-      }
+      // 최근 20프레임 유지 (슬라이딩 윈도우)
+      frameBuffer.current = frameBuffer.current.slice(-20);
+    }
+  };
 
-      // 오른손 좌표 수집
-      if (results.rightHandLandmarks) {
-        results.rightHandLandmarks.forEach((landmark) => {
-          coordinates.push(landmark.x, landmark.y, landmark.z);
-        });
-      }
+  const holistic = new window.Holistic({
+    locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/holistic@0.4/${file}`,
+  });
 
-      // 좌표가 154개면 전송
-      if (coordinates.length === 154) {
-        console.log("좌표 전송:", coordinates);
-        sendCoordinates(socket.current, coordinates);
-      }
-    };
+  holistic.setOptions({
+    modelComplexity: 1,
+    smoothLandmarks: true,
+    enableSegmentation: false,
+    refineFaceLandmarks: true,
+    upperBodyOnly: false,
+  });
 
-    // Mediapipe 설정
-    const holistic = new window.Holistic({
-      locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/holistic@0.4/${file}`,
-    });
+  holistic.onResults(onResults);
 
-    holistic.setOptions({
-      modelComplexity: 1,
-      smoothLandmarks: true,
-      enableSegmentation: false,
-      refineFaceLandmarks: false,
-      upperBodyOnly: true,
-      enableFaceGeometry: false,
-    });
+  const camera = new window.Camera(videoRef.current, {
+    onFrame: async () => {
+      await holistic.send({ image: videoRef.current });
+    },
+    width: 640,
+    height: 480,
+  });
 
-    holistic.onResults(onResults);
+  camera.start();
+}, []);
 
-    const camera = new window.Camera(videoRef.current, {
-      onFrame: async () => {
-        await holistic.send({ image: videoRef.current });
-      },
-      width: 640,
-      height: 480,
-    });
-
-    camera.start();
-  }, []);
 
   return (
     <div>

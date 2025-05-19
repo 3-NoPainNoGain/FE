@@ -24,13 +24,3 @@ export function connectWebSocket(url, onMessage) {
   return socket;
 }
 
-// 좌표 전송 함수
-export function sendCoordinates(socket, coordinates) {
-  if (socket && socket.readyState === WebSocket.OPEN) {
-    const message = {
-      coordinates: coordinates,
-      timestamp: new Date().toISOString(),
-    };
-    socket.send(JSON.stringify(message));
-  }
-}

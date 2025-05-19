@@ -1,101 +1,56 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { connectWebSocket, sendCoordinates } from '../utils/websocket';
+import { connectWebSocket } from '../utils/websocket';
 
 function HandPoseTracker() {
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const [recognizedText, setRecognizedText] = useState('');
   const socket = useRef(null);
-  const frameBuffer = useRef([]);
 
   useEffect(() => {
-  socket.current = connectWebSocket('ws://localhost:8000/ws', (data) => {
-    console.log("받은 응답:", data); 
-    setRecognizedText(data.text);
-  });
+    // WebSocket 연결
+    socket.current = connectWebSocket('ws://localhost:8000/ws', (data) => {
+      console.log("예측 결과 수신:", data.result);
+      setRecognizedText(data.result);
+    });
 
-  const onResults = (results) => {
-    const coordinates = [];
-    const poseIndices = [0, 11, 12, 13, 14, 15, 16];
-
-    if (results.poseLandmarks) {
-      poseIndices.forEach((index) => {
-        const lm = results.poseLandmarks[index];
-        coordinates.push(lm.x, lm.y, lm.z, lm.visibility);
+    // 카메라 스트림 가져오기
+    navigator.mediaDevices.getUserMedia({ video: true })
+      .then((stream) => {
+        console.log("스트림 가져옴")
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+          videoRef.current.onloadedmetadata = () => {
+            videoRef.current.play();
+            console.log("비디오 시작됨");
+          };
+        }
+      })
+      .catch((err) => {
+        console.error("카메라 접근 실패:", err.name, err.message);
       });
+
+  const interval = setInterval(() => {
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+
+    if (video && canvas && video.readyState >= 2 && socket.current.readyState === WebSocket.OPEN) {
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const base64Image = canvas.toDataURL('image/jpeg').split(',')[1];
+      socket.current.send(base64Image);
     }
+  }, 100);
 
-    if (results.leftHandLandmarks) {
-      results.leftHandLandmarks.forEach((lm) => {
-        coordinates.push(lm.x, lm.y, lm.z);
-      });
-    }
-
-    if (results.rightHandLandmarks) {
-      results.rightHandLandmarks.forEach((lm) => {
-        coordinates.push(lm.x, lm.y, lm.z);
-      });
-    }
-
-    // 부족한 좌표는 0으로 패딩
-    while (coordinates.length < 154) coordinates.push(0);
-
-   // 유효 좌표 수 확인 (디버깅용)
-    const validCount = coordinates.filter((v) => v !== 0).length;
-    if (validCount < 30) {
-      console.warn(`유효 좌표 부족: ${validCount}/154`);
-    }
-
-    //  무조건 프레임 누적
-    frameBuffer.current.push(coordinates);
-    console.log(`프레임 누적 (${frameBuffer.current.length}/30)`);
-
-    // 30개 쌓이면 전송
-    if (frameBuffer.current.length >= 30) {
-      const last30 = frameBuffer.current.slice(-30);
-      const allValidLength = last30.every((f) => f.length === 154);
-
-      if (allValidLength) {
-        console.log("30프레임 전송!");
-        sendCoordinates(socket.current, last30);
-      }
-
-      // 최근 20프레임 유지 (슬라이딩 윈도우)
-      frameBuffer.current = frameBuffer.current.slice(-20);
-    }
-  };
-
-  const holistic = new window.Holistic({
-    locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/holistic@0.4/${file}`,
-  });
-
-  holistic.setOptions({
-    modelComplexity: 1,
-    smoothLandmarks: true,
-    enableSegmentation: false,
-    refineFaceLandmarks: true,
-    upperBodyOnly: false,
-  });
-
-  holistic.onResults(onResults);
-
-  const camera = new window.Camera(videoRef.current, {
-    onFrame: async () => {
-      await holistic.send({ image: videoRef.current });
-    },
-    width: 640,
-    height: 480,
-  });
-
-  camera.start();
+  return () => clearInterval(interval);
 }, []);
+
 
 
   return (
     <div>
-      <h2>Handoc</h2>
-      <video ref={videoRef} autoPlay style={{ width: 640, height: 480 }}></video>
-      <canvas ref={canvasRef} width="640" height="480" style={{ border: '1px solid black' }}></canvas>
+      <video ref={videoRef} autoPlay playsInline muted width="640" height="480"/>
+      <canvas ref={canvasRef} width="640" height="480" style={{ border: '1px solid black', display : 'none'}} />
       <div id="result" style={{ marginTop: '20px', fontSize: '20px', color: 'blue' }}>
         {recognizedText ? `수어 인식 결과: ${recognizedText}` : '수어 인식 대기 중...'}
       </div>

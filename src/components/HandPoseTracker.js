@@ -1,13 +1,10 @@
 import React, { useRef, useEffect, useState } from 'react';
-<<<<<<< Updated upstream
-import { connectWebSocket, sendCoordinates } from '../utils/websocket';
-=======
 import { connectWebSocket } from '../utils/websocket';
 
 const drawHandKeypoints = (ctx, rawCoordinates, isLeft = true) => {
   if (!rawCoordinates || rawCoordinates.length !== 258 || !ctx) return;
 
-  const poseLength = 33 * 4;  // ✅ visibility 포함
+  const poseLength = 33 * 4;  //  visibility 포함
   const handLength = 21 * 3;
   const leftHandOffset = poseLength;
   const rightHandOffset = poseLength + handLength;
@@ -94,7 +91,6 @@ const drawPoseKeypoints = (ctx, rawCoordinates) => {
     }
   }
 };
->>>>>>> Stashed changes
 
 function HandPoseTracker() {
   const videoRef = useRef(null);
@@ -103,24 +99,6 @@ function HandPoseTracker() {
   const socket = useRef(null);
 
   useEffect(() => {
-<<<<<<< Updated upstream
-    // WebSocket 연결 설정
-    socket.current = connectWebSocket('ws://localhost:8000/ws', (data) => {
-      setRecognizedText(data.text);
-    });
-
-    const onResults = (results) => {
-      const coordinates = [];
-      // (7 pose x 4) + (21 x 3 왼손) + (21 x 3 오른손) = 154차원
-      const poseIndices = [0, 11, 12, 13, 14, 15, 16];
-
-      // 상반신 포즈 좌표 수집
-      if (results.poseLandmarks) {
-        poseIndices.forEach((index) => {
-          const landmark = results.poseLandmarks[index];
-          coordinates.push(landmark.x, landmark.y, landmark.z, landmark.visibility);
-        });
-=======
     socket.current = connectWebSocket('ws://localhost:8000/ws', (data) => {
       console.log("예측 결과 수신:", data.result);
       setRecognizedText(data.result);
@@ -160,63 +138,14 @@ function HandPoseTracker() {
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
         const base64Image = canvas.toDataURL('image/jpeg').split(',')[1];
         socket.current.send(base64Image);
->>>>>>> Stashed changes
       }
+    }, 100);
 
-      // 왼손 좌표 수집
-      if (results.leftHandLandmarks) {
-        results.leftHandLandmarks.forEach((landmark) => {
-          coordinates.push(landmark.x, landmark.y, landmark.z);
-        });
-      }
-
-      // 오른손 좌표 수집
-      if (results.rightHandLandmarks) {
-        results.rightHandLandmarks.forEach((landmark) => {
-          coordinates.push(landmark.x, landmark.y, landmark.z);
-        });
-      }
-
-      // 좌표가 154개면 전송
-      if (coordinates.length === 154) {
-        sendCoordinates(socket.current, coordinates);
-      }
-    };
-
-    // Mediapipe 설정
-    const holistic = new window.Holistic({
-      locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/holistic@0.4/${file}`,
-    });
-
-    holistic.setOptions({
-      modelComplexity: 1,
-      smoothLandmarks: true,
-      enableSegmentation: false,
-      refineFaceLandmarks: false,
-      upperBodyOnly: true,
-      enableFaceGeometry: false,
-    });
-
-    holistic.onResults(onResults);
-
-    const camera = new window.Camera(videoRef.current, {
-      onFrame: async () => {
-        await holistic.send({ image: videoRef.current });
-      },
-      width: 640,
-      height: 480,
-    });
-
-    camera.start();
+    return () => clearInterval(interval);
   }, []);
 
   return (
     <div>
-<<<<<<< Updated upstream
-      <h2>Handoc</h2>
-      <video ref={videoRef} style={{ display: 'none' }}></video>
-      <canvas ref={canvasRef} width="640" height="480" style={{ border: '1px solid black' }}></canvas>
-=======
       <video
         ref={videoRef}
         autoPlay
@@ -234,7 +163,6 @@ function HandPoseTracker() {
         style={{ border: '1px solid black' }}
       />
 
->>>>>>> Stashed changes
       <div id="result" style={{ marginTop: '20px', fontSize: '20px', color: 'blue' }}>
         {recognizedText ? `수어 인식 결과: ${recognizedText}` : '수어 인식 대기 중...'}
       </div>

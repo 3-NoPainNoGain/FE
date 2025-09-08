@@ -1,0 +1,204 @@
+
+
+.visit {
+  --brand: #3D46FF;
+  --brand-2: #3D6BFF;
+  --sidebar-w: 220px;
+  --bg: #F7F7F8;
+  --card: #FFFFFF;
+  --ink: #111827;
+  --muted: #6B7280;
+  --shadow: 0 12px 28px rgba(0,0,0,.08);
+  display: grid;
+  grid-template-columns: var(--sidebar-w) 1fr;
+  min-height: 100vh;
+  background: var(--bg);
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+}
+
+.visit__sidebar {
+  background: #fff;
+  border-right: 1px solid rgba(0,0,0,.06);
+  display: flex;
+  flex-direction: column;
+  padding: 12px 14px;
+}
+.sb__header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 6px 10px;
+}
+.sb__logo { width: 28px; height: 28px; }
+.sb__brand { font-weight: 800; color: #3D6BFF; font-size: 20px; }
+
+.sb__nav {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 10px 4px;
+}
+.sb__item {
+  color: #333;
+  text-decoration: none;
+  padding: 8px 6px;
+  border-radius: 8px;
+  font-weight: 600;
+}
+.sb__item:hover { background: rgba(0,0,0,.04); }
+.sb__item.active { color: #111; box-shadow: inset 0 -2px 0 #111; }
+
+.sb__footer {
+  margin-top: auto;
+  padding: 10px 6px 6px;
+}
+.sb__user { color: #9aa1a8; font-size: 13px; display: flex; align-items: center; gap: 6px; }
+.dot { width: 12px; height: 12px; border-radius: 50%; background: #bfc4ca; display:inline-block; }
+
+/* ========== Main ========== */
+.visit__main {
+  display: grid;
+  place-items: start center;
+  padding: 40px 24px 72px;
+  background: #f7f8fc;
+}
+.vm__container {
+  width: min(980px, 92vw);
+}
+
+/* (옵션) 카메라 프리뷰 영역이 필요할 때 사용 */
+.vm__preview {
+  height: clamp(220px, 42vw, 360px);
+  border-radius: 14px;
+  background: #BFBFBF;
+  display: grid;
+  place-items: center;
+  box-shadow: var(--shadow);
+  margin-bottom: 100px;
+}
+
+
+.vm__guideCard {
+  background: var(--card);
+  border-radius: 20px;
+  box-shadow: 0 12px 30px rgba(23, 26, 70, 0.08);
+  padding: 28px 28px 10px;
+  margin: 70px auto 150px; 
+  margin-bottom: 40px;    /* 아래쪽 여백 확보 */
+  min-height: 400px;   
+}
+
+
+.vm__cardHeader { margin-bottom: 8px; }
+
+.vm__badge {
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--brand);
+  background: rgba(61, 70, 255, 0.10);
+  border-radius: 999px;
+  padding: 6px 12px;
+  margin-bottom: 10px;
+}
+
+.vm__title {
+  font-size: 22px;
+  font-weight: 800;
+  margin: 0 0 6px;
+  color: var(--ink);
+}
+
+.vm__subtitle {
+  margin: 0;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+/* 섹션 그리드 */
+.vm__sections {
+  display: flex;
+  flex-direction: column;   /* 위아래 배치 */
+  align-items: center;      /* 가로 가운데 정렬 */
+  gap: 24px;                /* 카드 사이 간격 */
+  margin-top: 20px;
+}
+@media (min-width: 768px) {
+  .vm__sections { grid-template-columns: 1fr 1fr; }
+}
+
+/* 섹션 블록 */
+.vm__section {
+  display: flex;
+  gap: 14px;
+  background: #FAFBFF;
+  border: 1px solid #EEF0FF;
+  border-radius: 16px;
+  padding: 16px;
+}
+
+.vm__icon {
+  flex: 0 0 44px;
+  height: 44px;
+  width: 44px;
+  border-radius: 50%;
+  background: linear-gradient(180deg, #6B7CFF 0%, #5A62FF 100%);
+  display: grid;
+  place-items: center;
+  color: #fff;
+  font-size: 20px;
+  box-shadow: 0 6px 14px rgba(90, 98, 255, 0.22);
+}
+
+.vm__content { flex: 1; }
+.vm__sectionTitle {
+  margin: 2px 0 6px;
+  font-size: 16px;
+  font-weight: 800;
+  color: #1F2937;
+}
+
+.vm__list {
+  margin: 0;
+  padding-left: 18px;
+  color: #374151;
+  font-size: 14px;
+  line-height: 1.6;
+}
+.vm__list li { margin-bottom: 4px; }
+
+/* ===========================
+   CTA (시작 버튼)
+   =========================== */
+.vm__actions {
+  display: flex;
+  justify-content: center;
+  margin-top: -10px;
+  margin-bottom: 40px; 
+}
+
+.vm__start {
+  width: min(680px, 100%);
+  height: 56px;
+  border: none;
+  border-radius: 14px;
+  background: linear-gradient(90deg, var(--brand), var(--brand-2));
+  color: #fff;
+  font-weight: 800;
+  font-size: 16px;
+  letter-spacing: .02em;
+  cursor: pointer;
+  box-shadow: 0 12px 28px rgba(61, 107, 255, .35);
+  transition: transform 0.05s ease, box-shadow 0.2s ease, filter 0.2s ease;
+}
+.vm__start .arrow { margin-left: 10px; font-size: 14px; }
+.vm__start:hover { filter: brightness(1.03); box-shadow: 0 16px 32px rgba(61, 107, 255, .45); }
+.vm__start:active { transform: translateY(1px); }
+
+@media (max-width: 900px) {
+  .visit { grid-template-columns: 68px 1fr; }
+  .sb__brand { display: none; }
+  .sb__item { font-size: 14px; padding: 8px; }
+  .vm__container { width: min(720px, 92vw); }
+  .vm__title { font-size: 20px; }
+}

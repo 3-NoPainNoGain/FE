@@ -1,0 +1,51 @@
+/* 상단 바 */
+.sumbar{
+  display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:10px;
+}
+.sumbar__title{ margin:0; font-size:22px; font-weight:800; color:#111827; }
+.sumbar__sub{ margin:4px 0 0; font-size:13px; color:#6b7280; }
+.sumbar__actions{ display:flex; gap:10px; }
+
+/* ===== 우측 보고서 카드 (두 번째 스샷 톤) ===== */
+.report{
+  background:#fff;
+  border:1.6px solid #cfe0ff;      /* 연파랑 테두리 */
+  border-radius:18px;
+  padding:18px 20px 22px;
+  box-shadow:0 8px 24px rgba(59,91,253,0.06);
+  min-height:520px;
+}
+.report__title{
+  text-align:center; margin:4px 0 16px;
+  font-weight:800; font-size:16px; color:#3b5bfd; /* 파랑 타이틀 */
+}
+.report__meta{
+  display:grid; grid-template-columns:1fr auto; align-items:start; margin-bottom:14px;
+}
+.report__deptLink{
+  color:#3b5bfd; font-weight:700; text-decoration:underline; text-underline-offset:3px;
+}
+.report__clinic{ margin-top:2px; color:#374151; }
+.report__date{ color:#3b5bfd; font-weight:700; font-size:12.5px; }
+
+.report__section{
+  margin:14px 0 10px; font-size:14px; font-weight:800; color:#3b5bfd;
+}
+.report__row{
+  display:grid; grid-template-columns:110px 1fr; gap:10px; align-items:start; padding:8px 0;
+}
+.report__k{ color:#6b7280; font-size:13.5px; }
+.report__v{ color:#111827; font-size:14px; }
+.report__v--wrap{ white-space:normal; }
+
+.report__list{ list-style:disc; padding-left:18px; margin:0; display:grid; gap:4px; }
+.report__loading,.report__error{ margin-top:16px; color:#6b7280; }
+
+/* 좌측 채팅 카드가 세션과 동일하게 보이도록 */
+.chat{ min-height:520px; }
+.chat__empty{ color:#9ca3af; text-align:center; margin-top:40px; }
+
+/* 반응형: 좁은 화면에선 한 컬럼 */
+@media (max-width:1000px){
+  .sess__grid{ grid-template-columns:1fr; }
+}

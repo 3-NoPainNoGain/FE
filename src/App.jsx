@@ -3,6 +3,7 @@ import LandingPage from "./pages/LandingPage";
 import VisitPrepare from "./pages/VisitPrepare";
 import InPersonSession from "./pages/InPersonSession";
 import DiagnosisSummaryPage from "./pages/DiagnosisSummaryPage.jsx";
+import WebRtcSession from "./pages/WebRtcSession";
 
 export default function App() {
   return (
@@ -12,9 +13,12 @@ export default function App() {
         <Route path="/" element={<LandingPage />} />
 
         {/* 대면 진료 준비 페이지 */}
-        <Route path="/" element={<LandingPage />} />
         <Route path="/prepare" element={<VisitPrepare />} />
         <Route path="/session/:diagnosisId" element={<InPersonSession />} />
+
+        {/* 비대면 진료(WebRTC) */}
+        <Route path="/tele" element={<WebRtcSession />} />
+
         {/* 요약 페이지 라우트 */}
         <Route
           path="/session/:diagnosisId/summary"

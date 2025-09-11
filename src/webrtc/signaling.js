@@ -1,4 +1,3 @@
-// src/webrtc/signaling.js
 import { USE_MOCK } from "../config";
 
 /* ---------- MOCK: 같은 도메인의 두 탭 연결(BroadcastChannel) ---------- */
@@ -82,7 +81,6 @@ function createRealSignaling({
   onKeyReceive,
   onLeave,
 }) {
-  // 서버 호환: room & roomId 둘 다 쿼리로 전달
   const qp = `room=${encodeURIComponent(roomId)}&roomId=${encodeURIComponent(
     roomId
   )}&key=${encodeURIComponent(myKey)}`;
@@ -115,7 +113,6 @@ function createRealSignaling({
       send({ type: "answer", to: toKey, key: myKey, body: answer }),
     sendIce: (toKey, ice) => {
       const body = iceToJSON(ice);
-      // 서버가 어떤 이름을 기대하든 호환되도록 둘 다 전송
       send({ type: "candidate", to: toKey, key: myKey, body });
       send({ type: "ice", to: toKey, key: myKey, body });
     },
@@ -132,11 +129,21 @@ function createRealSignaling({
     socket: ws,
   };
 
+  // [수정] 마지막으로 출력된 로그를 저장하기 위한 변수
+  let lastLoggedMessage = "";
+
   ws.onopen = () => {
     console.log("[SIG] ws open", { url });
     api.sendMyKey();
   };
   ws.onmessage = (ev) => {
+    // [수정] 이전에 출력된 로그와 내용이 같으면 더 이상 진행하지 않음
+    if (ev.data === lastLoggedMessage) {
+      return;
+    }
+    // [수정] 현재 로그를 마지막 로그로 기록
+    lastLoggedMessage = ev.data;
+    
     let msg;
     try {
       msg = JSON.parse(ev.data);

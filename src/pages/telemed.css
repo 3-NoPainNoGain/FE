@@ -1,0 +1,116 @@
+.telemed {
+  display: flex;
+  min-height: 100vh;
+  background: #f8f9fb; 
+}
+
+.telemed__main {
+  flex: 1 1 auto;
+  padding: 24px 28px;
+}
+
+.telemed__header {
+  margin-bottom: 16px;
+}
+.telemed__title {
+  margin: 0;
+  font-size: 20px;           
+  font-weight: 700;
+  color: #222;
+}
+
+
+.telemed__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 18px;                 /* 카드 간격 */
+  padding-top: 8px;
+}
+
+.doc-card {
+  background: #fff;
+  border-radius: 12px;      
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  transition: transform .08s ease, box-shadow .08s ease;
+}
+.doc-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0,0,0,0.08);
+}
+
+.doc-card__thumb {
+  height: 140px;
+  background: #d9d9d9;    
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.doc-card__meta {
+  display: grid;
+  gap: 6px;
+  padding: 10px 12px 14px;
+}
+
+.doc-card__hospital {
+  font-size: 11px;
+  color: #9aa1a9;          
+}
+.doc-card__name {
+  font-size: 15px;
+  font-weight: 700;
+  color: #222;
+}
+
+
+.doc-card__status {
+  margin-top: 4px;
+}
+
+
+.badge {
+  display: inline-block;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 999px;
+  line-height: 1;
+  user-select: none;
+}
+
+.badge--open {
+  color: #3b82f6;            
+  background: #eaf2ff;      
+  border: 1px solid #cde0ff; 
+}
+
+.badge--closed {
+  color: #9aa1a9;
+  background: #f3f4f6;
+  border: 1px solid #e5e7eb;
+}
+
+@media (max-width: 768px) {
+  .telemed__main {
+    padding: 16px;
+  }
+  .telemed__title {
+    font-size: 18px;
+  }
+  .telemed__grid {
+    gap: 14px;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  }
+  .doc-card__thumb {
+    height: 120px;
+  }
+}
+
+.telemed > .visit__sidebar {
+  flex: 0 0 240px;  
+  min-height: 100vh;
+  background: #fff; 
+  border-right: 1px solid #eef0f3; 
+}
+

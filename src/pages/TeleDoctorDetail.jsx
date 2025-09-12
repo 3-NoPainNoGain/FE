@@ -1,5 +1,5 @@
 // src/pages/TeleDoctorDetail.jsx
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
 import "./session.css";
 import "./telemed-detail.css";
@@ -13,6 +13,7 @@ function StatusBadge({ status }) {
 
 export default function TeleDoctorDetail() {
   const { doctorId } = useParams();
+  const nav = useNavigate();
 
   // 목업 데이터 (나중에 API로 교체)
   const doc = {
@@ -20,9 +21,13 @@ export default function TeleDoctorDetail() {
     hospital: "이화여대 내과 병원",
     name: "이하은 의사",
     status: "open",
-    intro:
-      "안녕하세요. 내과 전문의 이하은입니다.어쩌구",
-   
+    intro: "안녕하세요. 내과 전문의 이하은입니다.어쩌구",
+    specialties: [
+      "만성질환 관리: 고혈압, 당뇨, 고지혈증",
+      "소화기 질환: 위염, 역류성 식도염, 과민성 장증후군 등",
+      "호흡기 질환: 감기, 기관지염, 천식 등",
+      "건강 상담 및 생활습관 관리",
+    ],
   };
 
   const introLines = String(doc.intro || "").split("\n");
@@ -33,8 +38,10 @@ export default function TeleDoctorDetail() {
       <Sidebar />
 
       <main className="tele-detail__main">
+        {/* 상단 이미지 자리 */}
         <div className="tele-detail__hero" aria-hidden="true" />
 
+        {/* 헤더 */}
         <div className="tele-detail__head">
           <div className="tele-detail__meta">
             <div className="tele-detail__hospital">
@@ -43,9 +50,15 @@ export default function TeleDoctorDetail() {
             <h1 className="tele-detail__name">{doc.name}</h1>
           </div>
 
-          <button className="d-btn d-btn--primary">진료 신청하기</button>
+          <button
+            className="d-btn d-btn--primary"
+            onClick={() => nav(`/tele/apply/${doctorId}`)}
+          >
+            진료 신청하기
+          </button>
         </div>
 
+        {/* 소개 */}
         <section className="tele-detail__section">
           <div className="tele-detail__intro">
             {introLines.map((l, idx) => (
@@ -54,6 +67,7 @@ export default function TeleDoctorDetail() {
           </div>
         </section>
 
+        {/* 전문 진료 분야 */}
         <section className="tele-detail__section">
           <ul className="tele-detail__list">
             {specialties.map((s, i) => (

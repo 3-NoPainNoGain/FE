@@ -3,7 +3,9 @@ import LandingPage from "./pages/LandingPage";
 import VisitPrepare from "./pages/VisitPrepare";
 import InPersonSession from "./pages/InPersonSession";
 import DiagnosisSummaryPage from "./pages/DiagnosisSummaryPage.jsx";
-import TeleDoctorList from "./pages/TeleDoctorList"; // ← 추가
+import TeleDoctorList from "./pages/TeleDoctorList"; 
+import ReservationConfirm from "./pages/ReservationConfirm.jsx";
+import TeleApplyWizard from "./pages/TeleApplyWizard.jsx";
 
 export default function App() {
   return (
@@ -25,6 +27,9 @@ export default function App() {
 
         {/* fallback */}
         <Route path="*" element={<Navigate to="/" replace />} />
+        <Route path="/tele/apply/:doctorId" element={<TeleApplyWizard />} />
+<Route path="/reservation/confirm" element={<ReservationConfirm />} />
+
       </Routes>
     </BrowserRouter>
   );

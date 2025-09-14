@@ -6,7 +6,9 @@ import DiagnosisSummaryPage from "./pages/DiagnosisSummaryPage.jsx";
 import TeleDoctorList from "./pages/TeleDoctorList"; 
 import TeleDoctorDetail from "./pages/TeleDoctorDetail";
 import TeleApplyWizard from "./pages/TeleApplyWizard"; 
-import ReservationConfirm from "./pages/ReservationConfirm"; // ✅ 추가
+import ReservationConfirm from "./pages/ReservationConfirm"; 
+
+
 
 export default function App() {
   return (
@@ -33,6 +35,9 @@ export default function App() {
 
         {/* fallback */}
         <Route path="*" element={<Navigate to="/" replace />} />
+        <Route path="/tele/doctor/:doctorId" element={<TeleDoctorDetail />} />
+        <Route path="/tele/apply/:doctorId" element={<TeleApplyWizard />} />
+
       </Routes>
     </BrowserRouter>
   );

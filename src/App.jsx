@@ -4,8 +4,9 @@ import VisitPrepare from "./pages/VisitPrepare";
 import InPersonSession from "./pages/InPersonSession";
 import DiagnosisSummaryPage from "./pages/DiagnosisSummaryPage.jsx";
 import TeleDoctorList from "./pages/TeleDoctorList"; 
-import ReservationConfirm from "./pages/ReservationConfirm.jsx";
-import TeleApplyWizard from "./pages/TeleApplyWizard.jsx";
+import TeleDoctorDetail from "./pages/TeleDoctorDetail";
+import TeleApplyWizard from "./pages/TeleApplyWizard"; 
+import ReservationConfirm from "./pages/ReservationConfirm"; // ✅ 추가
 
 export default function App() {
   return (
@@ -22,14 +23,16 @@ export default function App() {
           element={<DiagnosisSummaryPage />}
         />
 
-        {/* ✅ 비대면 진료 의사 목록 */}
+        {/* ✅ 비대면 진료 */}
         <Route path="/tele/doctor-list" element={<TeleDoctorList />} />
+        <Route path="/tele/doctor/:doctorId" element={<TeleDoctorDetail />} />
+        <Route path="/tele/apply/:doctorId" element={<TeleApplyWizard />} />
+
+        {/* ✅ 예약 확인 */}
+        <Route path="/reservation/confirm" element={<ReservationConfirm />} />
 
         {/* fallback */}
         <Route path="*" element={<Navigate to="/" replace />} />
-        <Route path="/tele/apply/:doctorId" element={<TeleApplyWizard />} />
-<Route path="/reservation/confirm" element={<ReservationConfirm />} />
-
       </Routes>
     </BrowserRouter>
   );

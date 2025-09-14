@@ -114,3 +114,5 @@
   border-right: 1px solid #eef0f3; 
 }
 
+
+.doc-card-link { text-decoration: none; color: inherit; }

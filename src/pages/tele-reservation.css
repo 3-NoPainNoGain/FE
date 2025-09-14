@@ -1,0 +1,226 @@
+/* 레이아웃 */
+.resv__wrap {
+  flex: 1 1 auto;
+  padding: 28px 32px;
+  display: grid;
+  grid-template-columns: 1fr 640px;
+  gap: 28px;
+  align-items: start;
+  background: #f8f9fb;
+}
+
+/* 좌측 */
+.resv__left {
+  padding: 0 8px 0 4px;
+  text-align: left;
+}
+
+.resv__headline {
+  margin: 0 0 20px;
+  font-size: 44px;
+  font-weight: 800;
+  color: #5471ff;
+  letter-spacing: -0.02em;
+}
+
+.resv__dept {
+  color: #4f7cff;
+  font-weight: 800;
+  margin-bottom: 8px;
+}
+
+.resv__hname {
+  color: #222;
+  font-size: 20px;
+}
+
+.resv__dname {
+  margin-top: 8px;
+  font-size: 28px;
+  font-weight: 800;
+  color: #111;
+}
+
+.resv__when {
+  margin-top: 20px;
+  font-size: 24px;
+  font-weight: 800;
+  color: #111;
+}
+
+/* 버튼 */
+.resv__go {
+  margin-top: 22px;
+  background: #e9e9f3;
+  color: #333;
+  border: 0;
+  height: 56px;
+  padding: 0 28px;
+  border-radius: 28px;
+  font-weight: 800;
+  font-size: 18px;
+  cursor: pointer;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+}
+.resv__go:hover {
+  filter: brightness(0.97);
+}
+
+/* 예약 취소 + 툴팁 */
+.resv__cancelwrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 20px;
+}
+
+.resv__cancel {
+  background: none;
+  border: 0;
+  color: #8b93a2;
+  text-decoration: underline;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+/* 툴팁 */
+.tooltip {
+  position: relative;
+  display: inline-block;
+  cursor: pointer;
+}
+.tooltip__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #e7e9ef;
+  color: #555;
+  font-weight: 700;
+  font-size: 12px;
+}
+.tooltip__text {
+  visibility: hidden;
+  opacity: 0;
+  width: max-content;
+  max-width: 260px;
+  background: #111827;
+  color: #fff;
+  text-align: center;
+  border-radius: 6px;
+  padding: 6px 10px;
+  position: absolute;
+  z-index: 10;
+  bottom: 125%;
+  left: 50%;
+  transform: translateX(-50%);
+  transition: opacity 0.2s;
+  font-size: 13px;
+  white-space: normal;
+}
+.tooltip__text::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  margin-left: -5px;
+  border-width: 5px;
+  border-style: solid;
+  border-color: #111827 transparent transparent transparent;
+}
+.tooltip:hover .tooltip__text {
+  visibility: visible;
+  opacity: 1;
+}
+
+/* 우측 카드 */
+.resv__card {
+  background: #fff;
+  border-radius: 18px;
+  box-shadow: 0 10px 34px rgba(0, 0, 0, 0.08);
+  overflow: hidden;
+  padding-bottom: 14px;
+}
+.resv__cardhead {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  padding: 22px 24px 12px;
+  border-bottom: 1px solid #eaedf3;
+}
+.resv__cardhead h2 {
+  margin: 0;
+  font-size: 26px;
+  font-weight: 800;
+}
+.resv__date {
+  color: #9aa1a9;
+  font-size: 14px;
+}
+
+/* 행/필드셋 */
+.resv__row,
+.resv__fieldset {
+  padding: 18px 24px;
+}
+.resv__row {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+.resv__row .label {
+  width: 140px;
+  color: #6b7280;
+  font-weight: 600;
+}
+.resv__row .value {
+  color: #111827;
+  font-weight: 800;
+  font-size: 18px;
+}
+
+
+.resv__form {
+  padding: 20px 24px 28px;
+}
+
+.form__row {
+  margin-bottom: 24px;
+}
+
+.form__label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #6b7280;
+}
+
+.form__value {
+  font-size: 16px;
+  font-weight: 700;
+  color: #111827;
+  background: #fafafa;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 10px 14px;
+}
+
+.form__options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.form__chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  color: #374151;
+}
+.form__chip input {
+  accent-color: #5471ff;
+}

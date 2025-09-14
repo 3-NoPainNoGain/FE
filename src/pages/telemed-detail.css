@@ -1,0 +1,115 @@
+/* src/pages/telemed-detail.css */
+
+/* 레이아웃 기본 (TeleDoctorList와 동일 컨테이너) */
+.tele-detail { background: #f8f9fb; }
+.tele-detail__main {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 24px 28px;
+}
+
+/* 상단 큰 썸네일 */
+.tele-detail__hero {
+  height: 300px;
+  border-radius: 12px;
+  background: #d9d9d9;
+  box-shadow: 0 2px 8px rgba(0,0,0,.06);
+  margin-bottom: 18px;
+}
+
+/* 헤더 라인 */
+.tele-detail__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 10px;
+}
+.tele-detail__hospital {
+  color: #9096a0;
+  font-size: 13px;
+}
+.tele-detail__name {
+  margin: 6px 0 0;
+  font-size: 22px;
+  font-weight: 800;
+  color: #111;
+}
+
+/* 상태 뱃지 */
+.d-badge {
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  margin-left: 6px;
+  line-height: 1;
+}
+.d-badge--open {
+  color: #3b82f6;
+  background: #eaf2ff;
+  border: 1px solid #cde0ff;
+}
+.d-badge--closed {
+  color: #9aa1a9;
+  background: #f3f4f6;
+  border: 1px solid #e5e7eb;
+}
+
+/* 신청 버튼 */
+.d-btn {
+  border: 0;
+  cursor: pointer;
+  border-radius: 999px;
+  padding: 10px 16px;
+  font-weight: 700;
+}
+.d-btn--primary {
+  background: #4f5df6;
+  color: #fff;
+  box-shadow: 0 8px 28px rgba(79, 93, 246, .28);
+}
+
+/* 본문 섹션 */
+.tele-detail__section {
+  margin-top: 16px;
+}
+
+/* 소개문 clamping */
+.tele-detail__intro p { margin: 0 0 8px; color:#2b2d36; }
+.tele-detail__intro.is-clamped {
+  display: -webkit-box;
+  -webkit-line-clamp: 5; /* 접힘일 때 5줄 */
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.tele-detail__intro.is-open {
+  -webkit-line-clamp: initial;
+}
+
+/* 더보기 링크 */
+.d-link {
+  margin-top: 6px;
+  background: transparent;
+  border: 0;
+  color: #6b7280;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+/* 소제목/리스트 */
+.tele-detail__subtitle {
+  margin: 14px 0 8px;
+  font-size: 16px;
+  font-weight: 800;
+  color: #111;
+}
+.tele-detail__list {
+  margin: 0;
+  padding-left: 18px;
+  color: #23262f;
+}
+
+/* 사이드바 폭 고정(보장) - 공통화가 안되어 있다면 활성화 */
+.telemed > .sb { flex: 0 0 220px; }

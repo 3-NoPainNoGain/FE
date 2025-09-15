@@ -1,0 +1,138 @@
+/* 코드 제목: 로그인 모달 기본 스타일 */
+
+/* 오버레이: 화면 전체 반투명 배경 */
+.login-overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, .35);
+  z-index: 1000;
+}
+
+/* 카드 컨테이너 */
+.login-card {
+  width: 520px;
+  max-width: calc(100% - 32px);
+  background: #fff;
+  border-radius: 20px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, .15);
+  padding: 28px;
+}
+
+/* 헤더: 로고 + 닫기 버튼 */
+.login-card__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.login-logo {
+  font-weight: 800;
+  font-size: 24px;
+  color: #2F57EB; /* Handoc 블루 */
+}
+
+.login-close {
+  background: transparent;
+  border: 0;
+  font-size: 24px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+/* 폼 레이아웃 */
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.login-label__text {
+  display: block;
+  font-size: 12px;
+  color: #666;
+  margin-bottom: 6px;
+}
+
+.login-input {
+  width: 100%;
+  height: 44px;
+  border-radius: 10px;
+  border: 1px solid #E6E6E6;
+  padding: 0 12px;
+}
+
+/* 에러 문구 */
+.login-error {
+  color: #E34850;
+  font-size: 13px;
+  margin-top: 2px;
+}
+
+/* 제출 버튼 */
+.login-submit {
+  height: 44px;
+  border-radius: 10px;
+  border: 0;
+  background: #2F57EB;
+  color: #fff;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+/* 구분선 */
+.login-divider {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #A0A0A0;
+  font-size: 12px;
+  margin: 6px 0;
+}
+.login-divider::before,
+.login-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: #eee;
+}
+
+/* 소셜 버튼 묶음 */
+.login-socials {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
+
+.social-btn {
+  height: 40px;
+  padding: 0 14px;
+  border: 1px solid #eee;
+  border-radius: 999px;
+  background: #fff;
+  cursor: pointer;
+}
+
+/* 하단 링크들 */
+.login-links {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  color: #8F8F8F;
+  margin-top: 6px;
+}
+
+.link-btn {
+  background: none;
+  border: 0;
+  color: inherit;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.sep {
+  color: #D0D0D0;
+}

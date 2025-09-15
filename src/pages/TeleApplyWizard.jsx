@@ -96,7 +96,7 @@ export default function TeleApplyWizard() {
     return first + "*".repeat(Math.max(0, s.length - 1));
   };
 
-  // 뒤 7자리 단일 입력창: 키보드로 숫자/백스페이스만 처리 (브라우저 호환 안정)
+  // 뒤 7자리 단일 입력창: 키보드로 숫자/백스페이스만 처리
   const handleBackKeyDown = (e) => {
     const k = e.key;
 
@@ -122,7 +122,7 @@ export default function TeleApplyWizard() {
         return;
       }
       setRrnBackRaw(rrnBackRaw + k);
-      e.preventDefault(); // 실제 입력은 우리가 관리
+      e.preventDefault();
       return;
     }
 
@@ -147,7 +147,6 @@ export default function TeleApplyWizard() {
   const todaySlots = useMemo(() => {
     const base = generateSlotsKST(kstNow);
     const cutoff = roundUpToNextHalfKST(kstNow); // 예: 10:40 → 11:00
-    // 🔧 수정: 다음 30분 경계부터 선택 가능 → cutoff "이전"만 비활성화
     return base.map((s) => ({ ...s, disabled: s.start < cutoff }));
   }, [kstNow]);
 
@@ -168,23 +167,12 @@ export default function TeleApplyWizard() {
   const onNext = () => setStep((s) => Math.min(3, s + 1));
   const onPrev = () => setStep((s) => Math.max(1, s - 1));
 
+  // ✅ 신청하기 → 예약 확인 화면으로 이동
   const onSubmit = () => {
     if (!rrnValid) return alert("주민등록번호를 올바르게 입력해 주세요.");
     if (!slot) return alert("진료 시간을 선택해 주세요.");
-
-    console.log("APPLY_FORM", {
-      doctorId,
-      rrnFront,
-      rrnBack: rrnBackRaw,
-      dayTab,
-      slot,
-      symptom,
-      duration: unknown ? "모름" : duration,
-      memo,
-    });
-
-    alert("신청이 완료되었습니다. (목업)");
-    nav("/");
+    // 실제 환경에선 API 호출 후 성공 시로 이동
+    nav("/reservation/confirm");
   };
 
   return (

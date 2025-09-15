@@ -1,21 +1,22 @@
-// 코드 제목: 공통 Axios 인스턴스 (토큰 자동첨부, 401 대비 준비)
+// 코드 제목: axios.js (CRA 대응: process.env.REACT_APP_* 사용)
 //
-// - baseURL만 프로젝트에 맞게 바꿔줘요.
-// - accessToken이 있으면 Authorization 헤더에 자동 첨부됩니다.
-// - 401 대응(리프레시)은 나중 단계에서 추가해도 됨.
+// - Vite 전용 import.meta.env 제거
+// - baseURL은 "도메인"까지만 두고, 요청 시 절대경로(/api/v2/...)를 사용
+// - Authorization 헤더 자동 첨부
 
 import axios from "axios";
 
+// .env 에서 REACT_APP_API_ORIGIN을 읽음. 없으면 handdoc.store 기본값
+const BASE_URL = process.env.REACT_APP_API_ORIGIN || "https://handdoc.store";
+
 export const api = axios.create({
-  baseURL: "https://handdoc.store/api", // ← 필요시 .env로 분리
+  baseURL: BASE_URL, // 예: https://handdoc.store
   withCredentials: false,
   timeout: 15000,
 });
 
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem("accessToken");
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
+  if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;
 });

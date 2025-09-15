@@ -170,3 +170,24 @@
   justify-content: center;
 }
 
+/* 로그인 버튼: 우측 상단 파란 pill 형태 */
+.btn-login {
+  position: absolute;      /* 헤더 오른쪽 위 고정 */
+  top: 16px;               /* 헤더 위쪽 여백 */
+  right: 24px;             /* 헤더 오른쪽 여백 */
+  height: 36px;
+  padding: 0 16px;
+  border: none;
+  border-radius: 12px;     /* pill 모양 */
+  background: #2F57EB;     /* 파란색 */
+  color: #fff;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.btn-login:hover {
+  background: #2349d8;     /* hover 시 더 진한 파랑 */
+}
+
+

@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Link } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import "./landing.css";
 
 import logoImg from "../assets/logo.png";
@@ -9,12 +9,55 @@ import image3 from "../assets/image3.png";
 
 import { useAuth } from "../auth/AuthContext";
 import LoginModal from "../components/LoginModal";
-import SignupModal from "../components/SignupModal"; // ⬅️ 반드시 존재/임포트
+import SignupModal from "../components/SignupModal";
+import NameModal from "../components/NameModal";
 
 export default function LandingPage() {
-  const { isLoggedIn, user, logout } = useAuth();
+  const nav = useNavigate();
+  const { isLoggedIn, user, logout, setUserName } = useAuth();
+
   const [showLogin, setShowLogin] = useState(false);
   const [showSignup, setShowSignup] = useState(false);
+  const [showName, setShowName] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  // 소셜 로그인 직후 name이 없는 경우만 모달 open
+  useEffect(() => {
+    // 로그인 상태 + user?.name 없음 + needName flag 있을 때만
+    const flag = sessionStorage.getItem("needName");
+    if (isLoggedIn && (!user?.name || flag)) {
+      setShowName(true);
+      sessionStorage.removeItem("needName");
+    } else {
+      setShowName(false);
+    }
+  }, [isLoggedIn, user?.name]);
+
+  const goPrepare = (e) => {
+    if (!isLoggedIn) {
+      e.preventDefault();
+      setShowLogin(true);
+      return;
+    }
+    nav("/prepare");
+  };
+
+  const headerRight = !isLoggedIn ? (
+    <button className="btn-login" onClick={() => setShowLogin(true)}>로그인</button>
+  ) : (
+    <div className="userbox">
+      <button className="userbox__btn" onClick={()=>setMenuOpen((v)=>!v)}>
+        <span className="userbox__avatar" aria-hidden>👤</span>
+        <span className="userbox__name">{user?.name ? `${user.name}님` : "사용자님"}</span>
+      </button>
+      {menuOpen && (
+        <div className="userbox__menu" role="menu">
+          <button className="userbox__item" onClick={()=>{setShowName(true); setMenuOpen(false);}}>이름 수정</button>
+          <button className="userbox__item -danger" onClick={()=>{ logout(); setMenuOpen(false); }}>로그아웃</button>
+        </div>
+      )}
+    </div>
+  );
 
   return (
     <div className="landing">
@@ -23,17 +66,7 @@ export default function LandingPage() {
           <img src={logoImg} alt="Handoc 로고" className="brand__logo" />
           <span className="brand__name">Handoc</span>
         </div>
-
-        <div className="landing__actions">
-          {!isLoggedIn ? (
-            <button className="btn-login" onClick={() => setShowLogin(true)}>로그인</button>
-          ) : (
-            <div className="login-state">
-              <span className="login-state__name">{user?.name || "사용자"}</span>
-              <button className="btn-logout" onClick={logout}>로그아웃</button>
-            </div>
-          )}
-        </div>
+        <div className="landing__actions">{headerRight}</div>
       </header>
 
       <main className="landing__main">
@@ -62,28 +95,33 @@ export default function LandingPage() {
       </main>
 
       <div className="landing__cta">
-        <Link to="/prepare" className="cta__link">
+        <a href="/prepare" onClick={goPrepare} className="cta__link">
           수어 통역 대면 진료 받으러 가기 <span className="cta__arrow" aria-hidden>→</span>
-        </Link>
+        </a>
       </div>
 
-      {/* 모달들 */}
+      {/* 로그인 모달 */}
       {showLogin && (
         <LoginModal
           onClose={() => setShowLogin(false)}
-          onOpenSignup={() => {           // ⬅️ 회원가입 열기 연결
-            setShowLogin(false);          // 로그인 모달 닫고
-            setShowSignup(true);          // 회원가입 모달 열기
-          }}
+          onOpenSignup={() => { setShowLogin(false); setShowSignup(true); }}
         />
       )}
-
+      {/* 회원가입 모달 */}
       {showSignup && (
         <SignupModal
           onClose={() => setShowSignup(false)}
-          onSuccess={() => {              // 가입 성공(=자동 로그인 완료)
-            setShowSignup(false);
-            setShowLogin(false);
+          onSuccess={() => { setShowSignup(false); setShowLogin(false); }}
+        />
+      )}
+
+      {/* 이름 입력 모달: 로그인 상태 + name 없음일 때만 */}
+      {showName && isLoggedIn && (
+        <NameModal
+          onClose={() => setShowName(false)}
+          onSubmit={async (name) => {
+            await setUserName(name);
+            setShowName(false);
           }}
         />
       )}

@@ -1,88 +1,173 @@
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
+// src/auth/AuthContext.jsx
+import { createContext, useContext, useMemo, useState, useCallback } from "react";
 import { api } from "./axios";
+import { useNavigate } from "react-router-dom";
 
-const AuthContext = createContext(null);
+const AuthCtx = createContext(null);
 
 export function AuthProvider({ children }) {
-  const [accessToken, setAccessToken] = useState(() => localStorage.getItem("accessToken") || "");
+  const nav = useNavigate();
+
+  const [token, setToken] = useState(() => localStorage.getItem("accessToken") || "");
   const [user, setUser] = useState(() => {
-    try { return JSON.parse(localStorage.getItem("user") || "null"); } catch { return null; }
+    try {
+      const raw = localStorage.getItem("user");
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
   });
 
-  const isLoggedIn = !!accessToken;
+  const isLoggedIn = !!token;
 
-  useEffect(() => {
-    const init = async () => {
-      if (!accessToken) return;
+  
+
+const loginBasic = useCallback(
+  async ({ email, password }) => {
+    // 공통 바디
+    const json = { email, password };
+    const form = new URLSearchParams({ email, password });
+
+    // 가장 가능성 높은 순으로 후보 나열
+    const candidates = [
+      // 1) /login/BASIC + JSON
+      { url: "/api/v2/auth/login/BASIC", data: json, config: { headers: { "Content-Type": "application/json" } } },
+      // 2) /login/BASIC + x-www-form-urlencoded
+      { url: "/api/v2/auth/login/BASIC", data: form, config: { headers: { "Content-Type": "application/x-www-form-urlencoded" } } },
+
+      // 3) /login?loginType=BASIC + JSON
+      { url: "/api/v2/auth/login", data: json, config: { params: { loginType: "BASIC" }, headers: { "Content-Type": "application/json" } } },
+      // 4) /login?loginType=BASIC + form
+      { url: "/api/v2/auth/login", data: form, config: { params: { loginType: "BASIC" }, headers: { "Content-Type": "application/x-www-form-urlencoded" } } },
+
+      // 5) /login + JSON (loginType 포함)
+      { url: "/api/v2/auth/login", data: { loginType: "BASIC", email, password }, config: { headers: { "Content-Type": "application/json" } } },
+    ];
+
+    let lastErr;
+    for (const c of candidates) {
       try {
-        // 필요 시 내 정보 검증 API 연결
-        // const { data } = await api.get("/api/v2/auth/me");
-        // setUser(data.results || user);
-      } catch {
-        logout();
+        const res = await api.post(c.url, c.data, {
+          withCredentials: true,
+          ...(c.config || {}),
+        });
+
+        const body = res?.data;
+        if (!body?.isSuccess || body?.code !== "REQUEST_OK" || !body?.results?.accessToken) {
+          throw new Error(body?.message || "로그인 실패");
+        }
+
+        const { accessToken, name, role } = body.results;
+        localStorage.setItem("accessToken", accessToken);
+        setToken(accessToken);
+
+        const nextUser = { name: name ?? null, role: role ?? "ROLE_PATIENT" };
+        setUser(nextUser);
+        localStorage.setItem("user", JSON.stringify(nextUser));
+        return body.results; 
+      } catch (e) {
+        lastErr = e; 
       }
-    };
-    init();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }
+
+   
+    const msg =
+      lastErr?.response?.data?.message ||
+      lastErr?.message ||
+      "로그인 요청이 거부되었습니다. (BASIC)";
+    throw new Error(msg);
+  },
+  [setToken, setUser]
+);
+
+ 
+  const signup = useCallback(async ({ email, password }) => {
+    const jsonBody = { email, password };
+    const formBody = new URLSearchParams({ email, password });
+
+    const candidates = [
+      { url: "/api/v2/auth/signup",   data: jsonBody, headers: { "Content-Type": "application/json" } },
+      { url: "/api/v2/auth/register", data: jsonBody, headers: { "Content-Type": "application/json" } },
+      { url: "/api/v2/auth/join",     data: jsonBody, headers: { "Content-Type": "application/json" } },
+      { url: "/api/v2/auth/sign-up",  data: jsonBody, headers: { "Content-Type": "application/json" } },
+      { url: "/api/v2/auth/signup",   data: formBody, headers: { "Content-Type": "application/x-www-form-urlencoded" } },
+      { url: "/api/v2/auth/register", data: formBody, headers: { "Content-Type": "application/x-www-form-urlencoded" } },
+      { url: "/api/v2/auth/join",     data: formBody, headers: { "Content-Type": "application/x-www-form-urlencoded" } },
+    ];
+
+    let lastErr;
+    for (const c of candidates) {
+      try {
+        const res = await api.post(c.url, c.data, { withCredentials: true, headers: c.headers });
+        const body = res?.data;
+        if (body?.isSuccess || res.status === 200 || res.status === 201) return true;
+        throw new Error(body?.message || "회원가입 실패");
+      } catch (e) {
+        lastErr = e;
+        continue;
+      }
+    }
+    const msg =
+      lastErr?.response?.data?.message ||
+      lastErr?.message ||
+      "회원가입 엔드포인트를 찾을 수 없습니다.";
+    throw new Error(msg);
   }, []);
 
-  const login = async ({ email, password }) => {
-    // (선택) 개발용 더미 로그인 - 필요 없으면 삭제
-    if (process.env.NODE_ENV === "development" && email === "dev@handdoc.test" && password === "Passw0rd!") {
-      const fakeUser = { name: "개발자", role: "ROLE_DOCTOR" };
-      localStorage.setItem("accessToken", "dev-token");
-      localStorage.setItem("user", JSON.stringify(fakeUser));
-      setAccessToken("dev-token");
-      setUser(fakeUser);
-      return;
-    }
+  const loginWithResults = useCallback((results) => {
+    if (!results?.accessToken) throw new Error("엑세스 토큰 없음");
+    localStorage.setItem("accessToken", results.accessToken);
+    setToken(results.accessToken);
 
-    const { data } = await api.post("/api/v2/auth/login", { email, password });
+    const nextUser = { name: results.name ?? null, role: results.role ?? "ROLE_PATIENT" };
+    setUser(nextUser);
+    localStorage.setItem("user", JSON.stringify(nextUser));
+  }, []);
 
-    if (!data?.isSuccess) {
-      const reason = data?.message || "로그인에 실패했습니다.";
-      const err = new Error(reason);
-      err.response = { status: 400, data };
-      throw err;
-    }
+  const setUserName = useCallback(
+    async (name) => {
+      try {
+        await api.post(
+          "/api/v2/auth/name",
+          null,
+          { params: { name }, headers: { Authorization: `Bearer ${token}` } }
+        );
+      } catch {
+        // 서버 저장 실패해도 프론트는 업데이트
+      }
+      const updated = { ...(user || {}), name };
+      setUser(updated);
+      localStorage.setItem("user", JSON.stringify(updated));
+    },
+    [token, user]
+  );
 
-    const { name, role, accessToken: at } = data.results || {};
-    if (!at) {
-      const err = new Error("토큰이 응답에 없습니다.");
-      err.response = { status: 500, data };
-      throw err;
-    }
-
-    localStorage.setItem("accessToken", at);
-    localStorage.setItem("user", JSON.stringify({ name, role }));
-    setAccessToken(at);
-    setUser({ name, role });
-  };
-
-  const signup = async ({ email, password }) => {
-    // ✅ 스펙: POST /api/v2/auth/signup  (results는 비어있을 수 있음)
-    const res = await api.post("/api/v2/auth/signup", { email, password });
-    const ok = res?.data?.isSuccess ?? (res?.status >= 200 && res?.status < 300);
-    if (!ok) {
-      const err = new Error(res?.data?.message || "회원가입에 실패했습니다.");
-      err.response = { status: res?.status || 400, data: res?.data };
-      throw err;
-    }
-    // 가입 성공 → 자동 로그인
-    await login({ email, password });
-  };
-
-  const logout = () => {
+  /** 로그아웃 */
+  const logout = useCallback(() => {
     localStorage.removeItem("accessToken");
-    localStorage.removeItem("refreshToken");
     localStorage.removeItem("user");
-    setAccessToken("");
+    setToken("");
     setUser(null);
-  };
+    nav("/", { replace: true });
+  }, [nav]);
 
-  const value = useMemo(() => ({ isLoggedIn, user, login, signup, logout }), [isLoggedIn, user]);
+  const value = useMemo(
+    () => ({
+      token,
+      user,
+      isLoggedIn,
+      loginBasic,      
+      signup,
+      loginWithResults,
+      setUserName,
+      logout,
+    }),
+    [token, user, isLoggedIn, loginBasic, signup, loginWithResults, setUserName, logout]
+  );
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return <AuthCtx.Provider value={value}>{children}</AuthCtx.Provider>;
 }
 
-export const useAuth = () => useContext(AuthContext);
+export function useAuth() {
+  return useContext(AuthCtx);
+}

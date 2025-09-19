@@ -1,9 +1,10 @@
 import { useState } from "react";
+import { startOAuth } from "../utils/oauthStart";
 import { useAuth } from "../auth/AuthContext";
 import "./login-modal.css";
 
 export default function LoginModal({ onClose, onOpenSignup }) {
-  const { login } = useAuth();
+  const { loginBasic } = useAuth();
   const [email, setEmail] = useState("");
   const [pw, setPw] = useState("");
   const [loading, setLoading] = useState(false);
@@ -14,13 +15,13 @@ export default function LoginModal({ onClose, onOpenSignup }) {
     setErr("");
     setLoading(true);
     try {
-      await login({ email, password: pw });
+      await loginBasic({ email, password: pw }); // 응답 검증에서 실패하면 throw
       onClose?.();
     } catch (error) {
       const status = error?.response?.status;
       if (status === 401) setErr("인증 실패(401): 이메일 또는 비밀번호를 확인해주세요.");
-      else if (status === 404) setErr("접근 거부(404): 계정을 찾을 수 없습니다.");
-      else setErr(error?.response?.data?.message || "로그인에 실패했습니다.");
+      else if (status === 404) setErr("계정을 찾을 수 없습니다. 회원가입 후 다시 로그인 해주세요.");
+      else setErr(error?.message || "로그인에 실패했습니다.");
     } finally {
       setLoading(false);
     }
@@ -53,9 +54,8 @@ export default function LoginModal({ onClose, onOpenSignup }) {
 
           <div className="login-divider"><span>간편 로그인</span></div>
           <div className="login-socials">
-            <button type="button" className="social-btn">Kakao</button>
-            <button type="button" className="social-btn">Naver</button>
-            <button type="button" className="social-btn">Google</button>
+            <button type="button" className="social-btn" onClick={()=>startOAuth("kakao")}>Kakao</button>
+            <button type="button" className="social-btn" onClick={()=>startOAuth("google")}>Google</button>
           </div>
 
           <div className="login-links">
@@ -63,7 +63,6 @@ export default function LoginModal({ onClose, onOpenSignup }) {
             <span className="sep">|</span>
             <button type="button" className="link-btn">비밀번호 찾기</button>
             <span className="sep">|</span>
-            {/* ⬇️ 여기! 회원가입 클릭 시 콜백 호출 */}
             <button type="button" className="link-btn" onClick={() => onOpenSignup?.()}>
               회원가입
             </button>

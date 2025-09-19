@@ -1,8 +1,3 @@
-// 코드 제목: App.jsx (라우팅 + AuthProvider 적용)
-// - BrowserRouter 안에서 Routes 구성
-// - 상단 로그인 버튼/모달에서 사용하는 인증 컨텍스트를 전역에 공급하기 위해 AuthProvider로 전체 감싸기
-// - 중복된 라우트(/tele/doctor/:doctorId, /tele/apply/:doctorId) 제거
-
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 
 import LandingPage from "./pages/LandingPage";
@@ -13,20 +8,21 @@ import DiagnosisSummaryPage from "./pages/DiagnosisSummaryPage.jsx";
 import TeleDoctorList from "./pages/TeleDoctorList";
 import TeleDoctorDetail from "./pages/TeleDoctorDetail";
 import TeleApplyWizard from "./pages/TeleApplyWizard";
-
 import ReservationConfirm from "./pages/ReservationConfirm";
 
+import OAuthCallback from "./pages/OAuthCallback";
 import { AuthProvider } from "./auth/AuthContext";
 
 export default function App() {
   return (
-    <AuthProvider>
-      <BrowserRouter>
+    <BrowserRouter>
+      {/* ⬅️ 반드시 Router 안쪽에 AuthProvider를 둡니다 */}
+      <AuthProvider>
         <Routes>
-          {/* 랜딩 페이지 */}
+          {/* 랜딩 */}
           <Route path="/" element={<LandingPage />} />
 
-          {/* 대면 진료 준비 / 세션 / 요약 */}
+          {/* 대면 진료 */}
           <Route path="/prepare" element={<VisitPrepare />} />
           <Route path="/session/:diagnosisId" element={<InPersonSession />} />
           <Route
@@ -42,10 +38,13 @@ export default function App() {
           {/* 예약 확인 */}
           <Route path="/reservation/confirm" element={<ReservationConfirm />} />
 
+          {/* OAuth 콜백 */}
+          <Route path="/oauth/:provider/callback" element={<OAuthCallback />} />
+
           {/* fallback */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
-      </BrowserRouter>
-    </AuthProvider>
+      </AuthProvider>
+    </BrowserRouter>
   );
 }

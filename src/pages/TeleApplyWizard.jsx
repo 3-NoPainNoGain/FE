@@ -1,4 +1,10 @@
 // src/pages/TeleApplyWizard.jsx
+// 변경 요약:
+// - 스텝 구성: 1) 본인확인 → 2) 시간 선택 → 3) 원하는 기능(복수 선택) → 4) 증상 입력
+// - 기능 선택을 체크박스 다중선택으로 구현 (features: string[])
+// - 유효성: 기능 1개 이상 선택 시에만 다음 단계 가능
+// - 최종 제출 시 payload 예시에 features 포함 (백엔드 협의 주석)
+
 import { useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
@@ -53,9 +59,10 @@ function roundUpToNextHalfKST(kstNow) {
 
 /* ===== 스텝 표시 ===== */
 function Stepper({ step }) {
+  // 총 4단계
   return (
     <div className="apply__stepper" aria-label="신청 단계">
-      {[1, 2, 3].map((n) => (
+      {[1, 2, 3, 4].map((n) => (
         <span
           key={n}
           className={`apply__dot ${
@@ -84,9 +91,9 @@ export default function TeleApplyWizard() {
     [doctorId]
   );
 
-  /* ---- STEP 1: 주민번호 ---- */
+  /* ---- STEP 1: 본인확인(주민번호) ---- */
   const [rrnFront, setRrnFront] = useState(""); // 앞 6자리
-  const [rrnBackRaw, setRrnBackRaw] = useState(""); // 뒤 7자리(실제값, 단일 입력창)
+  const [rrnBackRaw, setRrnBackRaw] = useState(""); // 뒤 7자리(단일 입력창)
   const rrnValid = rrnFront.length === 6 && rrnBackRaw.length === 7;
 
   // 뒤 7자리 마스킹: 첫 글자만 보이고 나머지는 '*'
@@ -158,20 +165,70 @@ export default function TeleApplyWizard() {
 
   const slots = dayTab === "today" ? todaySlots : tomorrowSlots;
 
-  /* ---- STEP 3: 증상 ---- */
+  /* ---- STEP 3: 원하는 기능 선택 (복수선택 체크박스) ---- */
+  // 옵션 정의 (라벨/설명은 UI 카피와 동일)
+  const FEATURE_OPTIONS = [
+    {
+      key: "signLanguageTranslation",
+      label: "수어-텍스트 변환",
+      help:
+        "화면을 보고 수어를 하면, 이를 인식하여 텍스트로 변환하고 화면에 보여주는 기능입니다. " +
+        "인식이 틀릴 경우, 재시도할 수 있습니다.",
+    },
+    {
+      key: "speechToText",
+      label: "음성-텍스트 변환",
+      help:
+        "의사와 환자의 음성을 인식하여, 텍스트로 변환하여 화면에 보여주는 기능입니다.",
+    },
+    // 필요 시 확장 가능:
+    // { key: "largeCaption", label: "큰 글씨 자막", help: "가독성 높은 대형 텍스트 제공" },
+    // { key: "captionSync", label: "자막 동기화", help: "대본 기반 싱크 보정" },
+  ];
+  const [features, setFeatures] = useState([]); // string[]
+
+  const toggleFeature = (key) => {
+    setFeatures((prev) =>
+      prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]
+    );
+  };
+  const featuresValid = features.length > 0;
+
+  /* ---- STEP 4: 증상 ---- */
   const [symptom, setSymptom] = useState("기침");
   const [duration, setDuration] = useState("");
   const [unknown, setUnknown] = useState(false);
   const [memo, setMemo] = useState("");
 
-  const onNext = () => setStep((s) => Math.min(3, s + 1));
+  const onNext = () => setStep((s) => Math.min(4, s + 1));
   const onPrev = () => setStep((s) => Math.max(1, s - 1));
 
   // ✅ 신청하기 → 예약 확인 화면으로 이동
   const onSubmit = () => {
     if (!rrnValid) return alert("주민등록번호를 올바르게 입력해 주세요.");
     if (!slot) return alert("진료 시간을 선택해 주세요.");
+    if (!featuresValid) return alert("원하는 기능을 1개 이상 선택해 주세요.");
+
     // 실제 환경에선 API 호출 후 성공 시로 이동
+    // 백엔드 협의용 payload 예시:
+    // const payload = {
+    //   doctorProfileId: Number(doc.id),
+    //   rrnFront,
+    //   rrnBack: rrnBackRaw, // 서버 전송 시 마스킹 없이; HTTPS/보안 저장 필수
+    //   slotDate:
+    //     dayTab === "today"
+    //       ? new Date(kstNow).toISOString().slice(0, 10)
+    //       : new Date(
+    //           new Date(kstNow).setDate(kstNow.getDate() + 1)
+    //         ).toISOString().slice(0, 10),
+    //   slotLabel: slot, // "HH:mm~HH:mm"
+    //   features,        // 예: ["signLanguageTranslation","speechToText"]
+    //   symptom,
+    //   symptomDuration: unknown ? null : Number(duration || 0),
+    //   description: memo,
+    // };
+
+    // TODO: await api.post("/api/v2/apply", payload);
     nav("/reservation/confirm");
   };
 
@@ -190,11 +247,11 @@ export default function TeleApplyWizard() {
             <span className="apply__hname">{doc.hospital}</span>
           </div>
 
-          {/* ===== STEP 1 ===== */}
+          {/* ===== STEP 1: 본인확인 ===== */}
           {step === 1 && (
             <div className="apply__body">
               <p className="apply__desc">
-                진료 예약을 위해 주민등록번호 입력이 필요합니다. 입력된 개인정보는
+                진료 신청을 위해 주민등록번호 입력이 필요합니다. 입력된 개인정보는
                 관련 법에 따라 안전하게 보호됩니다.
               </p>
 
@@ -234,7 +291,7 @@ export default function TeleApplyWizard() {
             </div>
           )}
 
-          {/* ===== STEP 2 ===== */}
+          {/* ===== STEP 2: 시간 선택 ===== */}
           {step === 2 && (
             <div className="apply__body">
               <div className="apply__tabs">
@@ -285,10 +342,50 @@ export default function TeleApplyWizard() {
                 <button className="btn-ghost" onClick={onPrev}>
                   ◂ 이전 단계
                 </button>
+                <button className="btn-primary" onClick={onNext} disabled={!slot}>
+                  다음 단계 ▸
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* ===== STEP 3: 원하는 기능 선택 (복수선택) ===== */}
+          {step === 3 && (
+            <div className="resv__form">
+              <div className="form__row">
+                <label className="form__label">
+                  기능 선택 <span className="hint">복수 선택할 수 있습니다</span>
+                </label>
+
+                <div className="feature__group">
+                  {FEATURE_OPTIONS.map((opt) => {
+                    const on = features.includes(opt.key);
+                    return (
+                      <label key={opt.key} className="feature__item">
+                        <input
+                          type="checkbox"
+                          value={opt.key}
+                          checked={on}
+                          onChange={() => toggleFeature(opt.key)}
+                        />
+                        <div className="feature__text">
+                          <span className="feature__title">{opt.label}</span>
+                          <p className="feature__desc">{opt.help}</p>
+                        </div>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="resv__row" style={{ justifyContent: "space-between" }}>
+                <button className="btn-ghost" onClick={onPrev}>
+                  ◂ 이전 단계
+                </button>
                 <button
                   className="btn-primary"
                   onClick={onNext}
-                  disabled={!slot}
+                  disabled={!featuresValid}
                 >
                   다음 단계 ▸
                 </button>
@@ -296,8 +393,8 @@ export default function TeleApplyWizard() {
             </div>
           )}
 
-          {/* ===== STEP 3 ===== */}
-          {step === 3 && (
+          {/* ===== STEP 4: 증상 ===== */}
+          {step === 4 && (
             <div className="apply__body">
               <div className="apply__fieldset">
                 <div className="apply__legend">증상 선택</div>

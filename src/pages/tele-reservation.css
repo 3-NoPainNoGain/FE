@@ -224,3 +224,64 @@
 .form__chip input {
   accent-color: #5471ff;
 }
+/* === 기능 선택 (Step 3) 전용 === */
+/* 라디오 그룹 래퍼 */
+.feature__group {
+  display: grid;
+  gap: 16px;              /* 카드 사이 간격 */
+  margin-top: 8px;
+}
+
+/* 라디오 + 텍스트 카드 */
+.feature__item {
+  display: grid;
+  grid-template-columns: 18px 1fr;  /* 라디오, 내용 */
+  align-items: start;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  background: #fff;
+  cursor: pointer;
+  transition: box-shadow .15s ease, border-color .15s ease, background .15s ease;
+}
+.feature__item:hover {
+  box-shadow: 0 6px 16px rgba(0,0,0,.06);
+}
+
+/* 선택(checked) 상태 강조 */
+.feature__item:has(input[type="radio"]:checked) {
+  border-color: #5471ff;
+  background: #f6f8ff;
+  box-shadow: 0 8px 22px rgba(84,113,255,0.18);
+}
+
+/* 라디오 자체 색 */
+.feature__item input[type="radio"] {
+  accent-color: #5471ff;
+  margin-top: 3px; /* 텍스트 수직정렬 보정 */
+}
+
+/* 큰 제목 (요청: 더 크고 눈에 띄게) */
+.feature__title {
+  display: block;
+  font-size: 18px;   /* ≤ 기존 본문 대비 크게 */
+  font-weight: 800;
+  color: #111827;
+  letter-spacing: -0.01em;
+}
+
+/* 설명 문단 */
+.feature__desc {
+  margin-top: 6px;
+  font-size: 14px;
+  line-height: 1.6;
+  color: #4b5563;
+}
+
+/* 왼쪽 라벨(“기능 선택”)에 보조설명 붙일 때 */
+.form__label .hint {
+  margin-left: 8px;
+  font-weight: 500;
+  color: #9aa1a9;
+}

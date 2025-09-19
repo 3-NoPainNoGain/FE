@@ -1,0 +1,251 @@
+.nm-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(8, 15, 35, 0.55); 
+  backdrop-filter: blur(2px);
+  display: grid;
+  place-items: center;
+  z-index: 1000;
+}
+
+.nm-card {
+  width: 360px;
+  max-width: calc(100vw - 48px);
+  background: #fff;
+  border-radius: 16px;
+  box-shadow:
+    0 20px 40px rgba(0, 0, 0, 0.18),
+    0 2px 6px rgba(0, 0, 0, 0.04);
+  padding: 24px 24px 20px;
+  position: relative;
+  animation: nm-pop 140ms ease-out;
+}
+
+@keyframes nm-pop {
+  from {
+    transform: translateY(6px) scale(0.98);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+}
+
+.nm-card__header {
+  position: relative;
+  margin-bottom: 16px;
+  text-align: center;
+}
+
+.nm-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: #111827; 
+}
+
+.nm-close {
+  position: absolute;
+  top: -6px;
+  right: -2px;
+  border: 0;
+  background: transparent;
+  color: #9ca3af; 
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 8px;
+  transition: color 120ms ease, background 120ms ease;
+}
+.nm-close:hover {
+  color: #6b7280; 
+  background: #f3f4f6; 
+}
+
+.nm-form {
+  display: grid;
+  gap: 10px;
+}
+
+.nm-input {
+  width: 100%;
+  height: 44px;
+  padding: 0 14px;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  background: #f9fafb; /* gray-50 */
+  outline: none;
+  font-size: 14px;
+  color: #111827;
+  transition: border-color 140ms ease, box-shadow 140ms ease, background 140ms ease;
+}
+
+.nm-input::placeholder {
+  color: #9ca3af; 
+}
+
+.nm-input:focus {
+  border-color: #6366f1; 
+  background: #fff;
+  box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.15);
+}
+
+.nm-submit {
+  height: 44px;
+  border: 0;
+  border-radius: 10px;
+  background: #4f46e5; /* indigo-600 */
+  color: #fff;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  cursor: pointer;
+  transition: transform 60ms ease, background 160ms ease, box-shadow 160ms ease;
+  box-shadow: 0 6px 14px rgba(79, 70, 229, 0.25);
+}
+
+.nm-submit:hover {
+  background: #4338ca; /* indigo-700 */
+}
+
+.nm-submit:active {
+  transform: translateY(1px);
+}
+
+.nm-submit:disabled {
+  background: #a5b4fc; /* indigo-300 */
+  cursor: default;
+  box-shadow: none;
+}
+
+/* Hint */
+.nm-hint {
+  margin: 12px 0 2px;
+  text-align: center;
+  font-size: 12px;
+  color: #9ca3af; /* gray-400 */
+}
+/* overlay */
+.nm-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(2px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+/* card */
+.nm-card {
+  position: relative;
+  width: 420px;
+  max-width: calc(100% - 40px);
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 28px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+  text-align: center;
+}
+
+/* close button */
+.nm-close {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  border: 0;
+  background: transparent;
+  font-size: 24px;
+  line-height: 1;
+  color: #8b8b8b;
+  cursor: pointer;
+}
+
+/* title */
+.nm-title {
+  margin: 8px 0 18px;
+  font-size: 22px;
+  font-weight: 700;
+  color: #111827;
+}
+
+/* form */
+.nm-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* input */
+.nm-input {
+  height: 44px;
+  border: 1px solid #e5e7eb;
+  background: #f7f7f9;
+  border-radius: 10px;
+  padding: 0 14px;
+  font-size: 15px;
+  outline: none;
+}
+.nm-input:focus {
+  background: #fff;
+  border-color: #8ab4ff;
+  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.12);
+}
+
+/* button */
+.nm-btn {
+  height: 44px;
+  border: 0;
+  border-radius: 10px;
+  background: #3b82f6;           /* 파란 버튼 */
+  color: #fff;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.03s ease, box-shadow 0.2s ease;
+  box-shadow: 0 6px 14px rgba(59, 130, 246, 0.35);
+}
+.nm-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 20px rgba(59, 130, 246, 0.4);
+}
+.nm-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+/* help text */
+.nm-help {
+  margin-top: 10px;
+  font-size: 12.5px;
+  color: #8b8b8b;
+}
+/* overlay: 전체 화면 덮기 */
+.nm-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(2px);
+  /* 기존 display:flex 삭제 (중앙 정렬 담당 X) */
+  z-index: 1000;
+}
+
+/* card: 화면 정중앙에 고정 배치 */
+.nm-card {
+  position: fixed;                 /* ← 고정 포지셔닝 */
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);/* ← 정확한 중앙 */
+  width: clamp(280px, 92vw, 420px);
+  box-sizing: border-box;
+
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 28px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+  text-align: center;
+}

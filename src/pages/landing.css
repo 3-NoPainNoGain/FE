@@ -190,4 +190,165 @@
   background: #2349d8;     /* hover 시 더 진한 파랑 */
 }
 
+/* ===== 레이아웃 ===== */
+.landing {
+  min-height: 100vh;
+  background: #fbfbfe;
+  color: #111827;
+}
+
+.landing__header {
+  height: 64px;
+  padding: 0 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.landing__brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.brand__logo {
+  width: 28px;
+  height: 28px;
+}
+
+.brand__name {
+  font-size: 20px;
+  font-weight: 700;
+  color: #4f46e5;
+}
+
+/* 공통 pill 버튼 (로그인/로그아웃 공용) */
+.btn-pill {
+  height: 40px;
+  padding: 0 18px;
+  border: none;
+  border-radius: 9999px;
+  background: #4f46e5;
+  color: #fff;
+  font-weight: 600;
+  letter-spacing: -0.2px;
+  cursor: pointer;
+  box-shadow: 0 8px 18px rgba(79, 70, 229, 0.25);
+  transition: transform .05s ease, box-shadow .15s ease, background .15s ease;
+}
+.btn-pill:hover { background: #4338ca; }
+.btn-pill:active { transform: translateY(1px); box-shadow: 0 5px 14px rgba(79, 70, 229, 0.22); }
+
+/* 로그인 상태 표시 */
+.login-state {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.login-state__hello {
+  font-size: 14px;
+  color: #6b7280; /* 살짝 옅은 회색 */
+}
+
+/* ===== 메인 ===== */
+.landing__main {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 32px 20px 48px;
+}
+
+.hero__title {
+  font-size: 52px;
+  line-height: 1.15;
+  letter-spacing: -0.6px;
+  font-weight: 800;
+  margin: 36px 0 10px;
+}
+
+.hero__subtitle {
+  color: #6b7280;
+  margin-bottom: 22px;
+}
+
+.features {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 28px;
+  margin-top: 28px;
+}
+
+.card {
+  background: #fff;
+  border-radius: 18px;
+  padding: 22px;
+  box-shadow: 0 12px 30px rgba(17, 24, 39, 0.06);
+}
+
+.card__thumb {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 10px;
+}
+.card__thumb img { width: 120px; height: 120px; }
+
+.card__title {
+  margin: 6px 0 6px;
+  font-size: 22px;
+  font-weight: 700;
+  text-align: center;
+}
+.card__desc {
+  color: #6b7280;
+  font-size: 15px;
+  text-align: center;
+}
+
+/* ===== CTA ===== */
+.landing__cta {
+  max-width: 1100px;
+  margin: 0 auto 36px;
+  padding: 0 20px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.cta__link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 52px;
+  padding: 0 22px;
+  background: #6366f1;
+  color: #fff;
+  border-radius: 9999px;
+  font-weight: 700;
+  box-shadow: 0 12px 28px rgba(99, 102, 241, .28);
+  transition: transform .05s ease, box-shadow .15s ease, background .15s ease;
+}
+.cta__link:hover { background: #5458ea; }
+.cta__link:active { transform: translateY(1px); box-shadow: 0 8px 20px rgba(99, 102, 241, .24); }
+.cta__arrow { opacity: .9; }
+/* 헤더 우측 사용자 박스(UI) */
+.userbox { position: relative; }
+.userbox__btn {
+  display: inline-flex; align-items: center; gap: 8px;
+  height: 40px; padding: 0 12px; border-radius: 20px; border: 1px solid #e6e7ee;
+  background: #fff; cursor: pointer;
+}
+.userbox__avatar { font-size: 16px; }
+.userbox__name { font-weight: 600; }
+
+.userbox__menu {
+  position: absolute; right: 0; top: calc(100% + 8px);
+  width: 160px; background: #fff; border: 1px solid #e6e7ee; border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0,0,0,.08); padding: 6px; z-index: 1000;
+}
+.userbox__item {
+  width: 100%; height: 40px; text-align: left; padding: 0 10px; border: 0;
+  background: transparent; border-radius: 8px; cursor: pointer; font-weight: 500;
+}
+.userbox__item:hover { background: #f4f6ff; }
+.userbox__item.-danger { color: #e02424; }
+.userbox__item.-danger:hover { background: #fff1f1; }
 

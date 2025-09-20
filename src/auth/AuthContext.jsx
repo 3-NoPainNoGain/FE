@@ -1,4 +1,3 @@
-// src/auth/AuthContext.jsx
 import { createContext, useContext, useMemo, useState, useCallback } from "react";
 import { api } from "./axios";
 import { useNavigate } from "react-router-dom";
@@ -20,102 +19,140 @@ export function AuthProvider({ children }) {
 
   const isLoggedIn = !!token;
 
-  
+  /**
+   * BASIC 로그인
+   */
+  const loginBasic = useCallback(
+    async ({ email, password }) => {
+      const json = { email, password };
+      const form = new URLSearchParams({ email, password });
 
-const loginBasic = useCallback(
-  async ({ email, password }) => {
-    // 공통 바디
-    const json = { email, password };
-    const form = new URLSearchParams({ email, password });
+      const candidates = [
+        // 1) /login/BASIC + JSON
+        {
+          url: "/api/v2/auth/login/BASIC",
+          data: json,
+          config: { headers: { "Content-Type": "application/json" } },
+        },
+        // 2) /login/BASIC + x-www-form-urlencoded
+        {
+          url: "/api/v2/auth/login/BASIC",
+          data: form,
+          config: { headers: { "Content-Type": "application/x-www-form-urlencoded" } },
+        },
+        // 3) /login?loginType=BASIC + JSON
+        {
+          url: "/api/v2/auth/login",
+          data: json,
+          config: {
+            params: { loginType: "BASIC" },
+            headers: { "Content-Type": "application/json" },
+          },
+        },
+        // 4) /login?loginType=BASIC + form
+        {
+          url: "/api/v2/auth/login",
+          data: form,
+          config: {
+            params: { loginType: "BASIC" },
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          },
+        },
+        // 5) /login + JSON (loginType 포함)
+        {
+          url: "/api/v2/auth/login",
+          data: { loginType: "BASIC", email, password },
+          config: { headers: { "Content-Type": "application/json" } },
+        },
+      ];
 
-    // 가장 가능성 높은 순으로 후보 나열
-    const candidates = [
-      // 1) /login/BASIC + JSON
-      { url: "/api/v2/auth/login/BASIC", data: json, config: { headers: { "Content-Type": "application/json" } } },
-      // 2) /login/BASIC + x-www-form-urlencoded
-      { url: "/api/v2/auth/login/BASIC", data: form, config: { headers: { "Content-Type": "application/x-www-form-urlencoded" } } },
+      let lastErr;
+      for (const c of candidates) {
+        try {
+          const res = await api.post(c.url, c.data, {
+            withCredentials: true,
+            ...(c.config || {}),
+          });
 
-      // 3) /login?loginType=BASIC + JSON
-      { url: "/api/v2/auth/login", data: json, config: { params: { loginType: "BASIC" }, headers: { "Content-Type": "application/json" } } },
-      // 4) /login?loginType=BASIC + form
-      { url: "/api/v2/auth/login", data: form, config: { params: { loginType: "BASIC" }, headers: { "Content-Type": "application/x-www-form-urlencoded" } } },
+          const body = res?.data;
+          if (body?.isSuccess && body?.code === "REQUEST_OK" && body?.results?.accessToken) {
+            const { accessToken, name, role } = body.results;
 
-      // 5) /login + JSON (loginType 포함)
-      { url: "/api/v2/auth/login", data: { loginType: "BASIC", email, password }, config: { headers: { "Content-Type": "application/json" } } },
-    ];
+            localStorage.setItem("accessToken", accessToken);
+            setToken(accessToken);
 
-    let lastErr;
-    for (const c of candidates) {
+            const nextUser = { name: name ?? null, role: role ?? "ROLE_PATIENT" };
+            setUser(nextUser);
+            localStorage.setItem("user", JSON.stringify(nextUser));
+
+            return body.results;
+          }
+
+          throw new Error(body?.message || "로그인 실패");
+        } catch (e) {
+          lastErr = e; 
+        }
+      }
+
+      const msg =
+        lastErr?.response?.data?.message ||
+        lastErr?.message ||
+        "로그인 요청이 거부되었습니다. (BASIC)";
+      throw new Error(msg);
+    },
+    [setToken, setUser]
+  );
+
+  /**
+   * 회원가입
+   */
+const signup = useCallback(async ({ email, password }) => {
+  const bodyCandidates = [
+    { email, password },                                     // {email,password}
+    { userEmail: email, userPassword: password },            // {userEmail,userPassword}
+    { username: email, password },                           // {username,password}
+    { email, password, role: "ROLE_PATIENT" },               // role 포함
+    { userEmail: email, userPassword: password, role: "ROLE_PATIENT" },
+  ];
+
+  const makePayloads = (b) => ([
+    { data: b, headers: { "Content-Type": "application/json" } },
+    { data: new URLSearchParams(Object.entries(b)), headers: { "Content-Type": "application/x-www-form-urlencoded" } },
+  ]);
+
+  let lastErr;
+
+  for (const b of bodyCandidates) {
+    for (const p of makePayloads(b)) {
       try {
-        const res = await api.post(c.url, c.data, {
+        const res = await api.post("/api/v2/auth/signup", p.data, {
           withCredentials: true,
-          ...(c.config || {}),
+          headers: p.headers,
         });
 
         const body = res?.data;
-        if (!body?.isSuccess || body?.code !== "REQUEST_OK" || !body?.results?.accessToken) {
-          throw new Error(body?.message || "로그인 실패");
+        if (body?.isSuccess || res.status === 200 || res.status === 201) {
+          return true;
         }
-
-        const { accessToken, name, role } = body.results;
-        localStorage.setItem("accessToken", accessToken);
-        setToken(accessToken);
-
-        const nextUser = { name: name ?? null, role: role ?? "ROLE_PATIENT" };
-        setUser(nextUser);
-        localStorage.setItem("user", JSON.stringify(nextUser));
-        return body.results; 
-      } catch (e) {
-        lastErr = e; 
-      }
-    }
-
-   
-    const msg =
-      lastErr?.response?.data?.message ||
-      lastErr?.message ||
-      "로그인 요청이 거부되었습니다. (BASIC)";
-    throw new Error(msg);
-  },
-  [setToken, setUser]
-);
-
- 
-  const signup = useCallback(async ({ email, password }) => {
-    const jsonBody = { email, password };
-    const formBody = new URLSearchParams({ email, password });
-
-    const candidates = [
-      { url: "/api/v2/auth/signup",   data: jsonBody, headers: { "Content-Type": "application/json" } },
-      { url: "/api/v2/auth/register", data: jsonBody, headers: { "Content-Type": "application/json" } },
-      { url: "/api/v2/auth/join",     data: jsonBody, headers: { "Content-Type": "application/json" } },
-      { url: "/api/v2/auth/sign-up",  data: jsonBody, headers: { "Content-Type": "application/json" } },
-      { url: "/api/v2/auth/signup",   data: formBody, headers: { "Content-Type": "application/x-www-form-urlencoded" } },
-      { url: "/api/v2/auth/register", data: formBody, headers: { "Content-Type": "application/x-www-form-urlencoded" } },
-      { url: "/api/v2/auth/join",     data: formBody, headers: { "Content-Type": "application/x-www-form-urlencoded" } },
-    ];
-
-    let lastErr;
-    for (const c of candidates) {
-      try {
-        const res = await api.post(c.url, c.data, { withCredentials: true, headers: c.headers });
-        const body = res?.data;
-        if (body?.isSuccess || res.status === 200 || res.status === 201) return true;
         throw new Error(body?.message || "회원가입 실패");
       } catch (e) {
         lastErr = e;
-        continue;
       }
     }
-    const msg =
-      lastErr?.response?.data?.message ||
-      lastErr?.message ||
-      "회원가입 엔드포인트를 찾을 수 없습니다.";
-    throw new Error(msg);
-  }, []);
+  }
 
+  const msg =
+    lastErr?.response?.data?.message ||
+    lastErr?.message ||
+    "회원가입 요청이 거부되었습니다. (바디 형식 불일치 가능)";
+  throw new Error(msg);
+}, []);
+
+
+  /** 소셜 콜백 결과로 로그인(카카오/구글 공통) */
   const loginWithResults = useCallback((results) => {
     if (!results?.accessToken) throw new Error("엑세스 토큰 없음");
+
     localStorage.setItem("accessToken", results.accessToken);
     setToken(results.accessToken);
 
@@ -156,7 +193,7 @@ const loginBasic = useCallback(
       token,
       user,
       isLoggedIn,
-      loginBasic,      
+      loginBasic,
       signup,
       loginWithResults,
       setUserName,

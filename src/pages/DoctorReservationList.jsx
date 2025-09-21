@@ -10,54 +10,12 @@ const STATUS = {
 };
 
 const seed = [
-  {
-    id: 1,
-    dateLabel: "2025.09.08 | 11:00~11:20",
-    name: "이하은",
-    symptoms: "기침, 가래",
-    status: STATUS.PENDING,
-    applyPath: "/doctor/applications/1",
-  },
-  {
-    id: 2,
-    dateLabel: "2025.09.08 | 11:00~11:20",
-    name: "이하은",
-    symptoms: "기침, 가래, 코막힘, 두통",
-    status: STATUS.PENDING,
-    applyPath: "/doctor/applications/2",
-  },
-  {
-    id: 3,
-    dateLabel: "2025.09.08 | 11:00~11:20",
-    name: "이하은",
-    symptoms: "기침, 가래",
-    status: STATUS.PENDING,
-    applyPath: "/doctor/applications/3",
-  },
-  {
-    id: 4,
-    dateLabel: "2025.09.08 | 11:00~11:20",
-    name: "이하은",
-    symptoms: "기침, 가래",
-    status: STATUS.REJECTED,
-    applyPath: "/doctor/applications/4",
-  },
-  {
-    id: 5,
-    dateLabel: "2025.09.08 | 11:00~11:20",
-    name: "이하은",
-    symptoms: "기침, 가래",
-    status: STATUS.ACCEPTED,
-    applyPath: "/doctor/applications/5",
-  },
-  {
-    id: 6,
-    dateLabel: "2025.09.08 | 11:00~11:20",
-    name: "이하은",
-    symptoms: "기침, 가래",
-    status: STATUS.ACCEPTED,
-    applyPath: "/doctor/applications/6",
-  },
+  { id: 1, dateLabel: "2025.09.08 | 11:00~11:20", name: "이하은", symptoms: "기침, 가래", status: STATUS.PENDING,  applyPath: "/doctor/applications/1" },
+  { id: 2, dateLabel: "2025.09.08 | 11:00~11:20", name: "이하은", symptoms: "기침, 가래, 코막힘, 두통", status: STATUS.PENDING,  applyPath: "/doctor/applications/2" },
+  { id: 3, dateLabel: "2025.09.08 | 11:00~11:20", name: "이하은", symptoms: "기침, 가래", status: STATUS.PENDING,  applyPath: "/doctor/applications/3" },
+  { id: 4, dateLabel: "2025.09.08 | 11:00~11:20", name: "이하은", symptoms: "기침, 가래", status: STATUS.REJECTED, applyPath: "/doctor/applications/4" },
+  { id: 5, dateLabel: "2025.09.08 | 11:00~11:20", name: "이하은", symptoms: "기침, 가래", status: STATUS.ACCEPTED, applyPath: "/doctor/applications/5" },
+  { id: 6, dateLabel: "2025.09.08 | 11:00~11:20", name: "이하은", symptoms: "기침, 가래", status: STATUS.ACCEPTED, applyPath: "/doctor/applications/6" },
 ];
 
 async function fetchReservations() {
@@ -66,6 +24,7 @@ async function fetchReservations() {
 
 export default function DoctorReservationList() {
   const [rows, setRows] = useState([]);
+  const [confirm, setConfirm] = useState({ open: false, id: null, action: null }); // action: 'ACCEPT' | 'REJECT'
 
   useEffect(() => {
     let alive = true;
@@ -86,12 +45,24 @@ export default function DoctorReservationList() {
   const setStatus = (id, next) =>
     setRows((prev) => prev.map((r) => (r.id === id ? { ...r, status: next } : r)));
 
+  const ask = (id, action) => setConfirm({ open: true, id, action });
+  const close = () => setConfirm({ open: false, id: null, action: null });
+  const confirmAction = () => {
+    if (!confirm.open || !confirm.id) return close();
+    if (confirm.action === "ACCEPT") setStatus(confirm.id, STATUS.ACCEPTED);
+    if (confirm.action === "REJECT") setStatus(confirm.id, STATUS.REJECTED);
+    close();
+  };
+
+  const titleText =
+    confirm.action === "ACCEPT" ? "진료 수락하시겠습니까?" : "진료 거절하시겠습니까?";
+  const confirmText = confirm.action === "ACCEPT" ? "수락" : "거절";
+
   return (
     <div className="telemed apply">
       <Sidebar />
 
       <main className="doclist__main">
-
         <div className="doclist__container">
           <section className="doclist__card">
             <header className="doclist__header">
@@ -128,14 +99,14 @@ export default function DoctorReservationList() {
                         <div className="actions">
                           <button
                             className="btn btn--ghost"
-                            onClick={() => setStatus(r.id, STATUS.REJECTED)}
+                            onClick={() => ask(r.id, "REJECT")}
                             aria-label="거절"
                           >
                             거절
                           </button>
                           <button
                             className="btn btn--primary"
-                            onClick={() => setStatus(r.id, STATUS.ACCEPTED)}
+                            onClick={() => ask(r.id, "ACCEPT")}
                             aria-label="수락"
                           >
                             수락
@@ -157,6 +128,31 @@ export default function DoctorReservationList() {
             </div>
           </section>
         </div>
+
+        {/* 확인 모달 */}
+        {confirm.open && (
+          <div className="dl-modal__backdrop" role="presentation" onClick={close}>
+            <div
+              className="dl-modal"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="dl-modal-title"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 id="dl-modal-title" className="dl-modal__title">
+                {titleText}
+              </h3>
+              <div className="dl-modal__actions">
+                <button className="dl-btn dl-btn--ghost" onClick={close}>
+                  취소
+                </button>
+                <button className="dl-btn dl-btn--primary" onClick={confirmAction}>
+                  {confirmText}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </main>
     </div>
   );

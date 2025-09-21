@@ -16,10 +16,13 @@ import ReservationConfirm from "./pages/ReservationConfirm";
 import OAuthCallback from "./pages/OAuthCallback";
 import { AuthProvider } from "./auth/AuthContext";
 
+// ⬇️ 의사 뷰: 진료 예약 리스트 페이지
+import DoctorReservationList from "./pages/DoctorReservationList";
+
 export default function App() {
   return (
     <BrowserRouter>
-      {/* ⬅️ 반드시 Router 안쪽에 AuthProvider를 둡니다 */}
+      {/* ⬅️ Router 안쪽에 AuthProvider를 둡니다 */}
       <AuthProvider>
         <Routes>
           {/* 랜딩 */}
@@ -33,13 +36,16 @@ export default function App() {
             element={<DiagnosisSummaryPage />}
           />
 
-          {/* 비대면 진료 */}
+          {/* 비대면 진료 (환자 뷰) */}
           <Route path="/tele/doctor-list" element={<TeleDoctorList />} />
           <Route path="/tele/doctor/:doctorId" element={<TeleDoctorDetail />} />
           <Route path="/tele/apply/:doctorId" element={<TeleApplyWizard />} />
 
           {/* 예약 확인 */}
           <Route path="/reservation/confirm" element={<ReservationConfirm />} />
+
+          {/* 의사 뷰 */}
+          <Route path="/doctor/reservations" element={<DoctorReservationList />} />
 
           {/* OAuth 콜백 */}
           <Route path="/oauth/:provider/callback" element={<OAuthCallback />} />

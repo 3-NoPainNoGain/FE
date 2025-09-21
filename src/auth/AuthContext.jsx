@@ -1,188 +1,285 @@
-import { createContext, useContext, useMemo, useState, useCallback } from "react";
+// [코드 제목] AuthContext (BASIC/소셜 로그인, 회원가입, 이름 저장, 선택적 사용자 조회, 로그아웃)
+
+import {
+  createContext,
+  useContext,
+  useMemo,
+  useState,
+  useCallback,
+  useEffect,
+} from "react";
 import { api } from "./axios";
 import { useNavigate } from "react-router-dom";
 
+/**
+ * NOTE
+ * - 이 파일은 모든 API 경로에 /api 접두사를 포함합니다.
+ * - axios(api)의 baseURL이 https://handdoc.store 라면 아래 경로를 그대로 쓰세요.
+ *   (만약 baseURL이 https://handdoc.store/api 라면 아래 경로에서 /api 를 제거하세요.)
+ */
+
+// ---- 로컬 스토리지 헬퍼 ------------------------------------------------------
+const ACCESS_KEY = "accessToken";
+const USER_KEY = "user";
+
+function loadToken() {
+  try {
+    return localStorage.getItem(ACCESS_KEY) || "";
+  } catch (e) {
+    return "";
+  }
+}
+function saveToken(t) {
+  try {
+    if (t) localStorage.setItem(ACCESS_KEY, t);
+    else localStorage.removeItem(ACCESS_KEY);
+  } catch (e) {
+    // 사파리 프라이빗 모드 등에서 스토리지 불가 시 조용히 무시
+    return;
+  }
+}
+function loadUser() {
+  try {
+    const raw = localStorage.getItem(USER_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch (e) {
+    return null;
+  }
+}
+function saveUser(u) {
+  try {
+    if (u) localStorage.setItem(USER_KEY, JSON.stringify(u));
+    else localStorage.removeItem(USER_KEY);
+  } catch (e) {
+    // 직렬화/스토리지 실패는 무시
+    return;
+  }
+}
+// -----------------------------------------------------------------------------
+
 const AuthCtx = createContext(null);
+export function useAuth() {
+  return useContext(AuthCtx);
+}
+
+// ---- 응답 파서: 다양한 포맷에서 토큰/프로필 추출 -----------------------------
+function extractTokenAndProfile(body) {
+  // 흔한 래핑: { isSuccess, code, results: {...} }
+  const top = body?.results ?? body ?? {};
+  const token =
+    top?.accessToken ??
+    body?.accessToken ??
+    body?.data?.accessToken ??
+    null;
+
+  const name =
+    top?.name ?? top?.userName ?? top?.username ?? null;
+
+  const role =
+    top?.role ??
+    (Array.isArray(top?.roles) ? top.roles[0] : undefined) ??
+    null;
+
+  const ok =
+    !!token ||
+    body?.isSuccess === true ||
+    String(body?.code || "").includes("OK");
+
+  return { ok, token, name, role };
+}
+// -----------------------------------------------------------------------------
 
 export function AuthProvider({ children }) {
   const nav = useNavigate();
 
-  const [token, setToken] = useState(() => localStorage.getItem("accessToken") || "");
-  const [user, setUser] = useState(() => {
-    try {
-      const raw = localStorage.getItem("user");
-      return raw ? JSON.parse(raw) : null;
-    } catch {
-      return null;
-    }
-  });
-
+  const [token, setToken] = useState(() => loadToken());
+  const [user, setUser] = useState(() => loadUser());
   const isLoggedIn = !!token;
 
-  /**
-   * BASIC 로그인
-   */
-  const loginBasic = useCallback(
-    async ({ email, password }) => {
-      const json = { email, password };
-      const form = new URLSearchParams({ email, password });
+  // ---------------------------------------------------------------------------
+  // (선택) 로그인 후 사용자 정보 조회
+  // 현재 서버에는 GET /api/v2/user/name 이 405(조회 비지원)로 보였으므로 기본 비활성.
+  // 필요 시 true로 바꾸고 fetch 후보를 채우세요.
+  // ---------------------------------------------------------------------------
+  const ENABLE_ME = false;
 
+  useEffect(() => {
+    if (!isLoggedIn || !ENABLE_ME) return;
+    let alive = true;
+
+    async function fetchUserLightweight() {
       const candidates = [
-        // 1) /login/BASIC + JSON
-        {
-          url: "/api/v2/auth/login/BASIC",
-          data: json,
-          config: { headers: { "Content-Type": "application/json" } },
-        },
-        // 2) /login/BASIC + x-www-form-urlencoded
-        {
-          url: "/api/v2/auth/login/BASIC",
-          data: form,
-          config: { headers: { "Content-Type": "application/x-www-form-urlencoded" } },
-        },
-        // 3) /login?loginType=BASIC + JSON
-        {
-          url: "/api/v2/auth/login",
-          data: json,
-          config: {
-            params: { loginType: "BASIC" },
-            headers: { "Content-Type": "application/json" },
-          },
-        },
-        // 4) /login?loginType=BASIC + form
-        {
-          url: "/api/v2/auth/login",
-          data: form,
-          config: {
-            params: { loginType: "BASIC" },
-            headers: { "Content-Type": "application/x-www-form-urlencoded" },
-          },
-        },
-        // 5) /login + JSON (loginType 포함)
-        {
-          url: "/api/v2/auth/login",
-          data: { loginType: "BASIC", email, password },
-          config: { headers: { "Content-Type": "application/json" } },
-        },
+        { method: "get", url: "/api/v2/auth/me" },
+        { method: "get", url: "/api/v2/user/me" },
+        { method: "get", url: "/api/v2/users/me" },
+        // { method: "get", url: "/api/v2/user/name" }, // 조회 미지원(405) 가능성이 큼
       ];
-
-      let lastErr;
       for (const c of candidates) {
         try {
-          const res = await api.post(c.url, c.data, {
-            withCredentials: true,
-            ...(c.config || {}),
-          });
+          const res =
+            c.method === "get" ? await api.get(c.url) : await api.post(c.url);
+          const { name, role } = extractTokenAndProfile(res?.data);
 
-          const body = res?.data;
-          if (body?.isSuccess && body?.code === "REQUEST_OK" && body?.results?.accessToken) {
-            const { accessToken, name, role } = body.results;
-
-            localStorage.setItem("accessToken", accessToken);
-            setToken(accessToken);
-
-            const nextUser = { name: name ?? null, role: role ?? "ROLE_PATIENT" };
-            setUser(nextUser);
-            localStorage.setItem("user", JSON.stringify(nextUser));
-
-            return body.results;
+          if (!alive) return;
+          const merged = {
+            ...(user || {}),
+            ...(name != null ? { name } : {}),
+            ...(role ? { role } : {}),
+          };
+          if (Object.keys(merged).length > 0) {
+            setUser(merged);
+            saveUser(merged);
+            return;
           }
-
-          throw new Error(body?.message || "로그인 실패");
         } catch (e) {
-          lastErr = e; 
+          const status = e?.response?.status;
+          if ([401, 403].includes(status)) break; // 토큰 문제면 중단
+          // 404/405 등은 다음 후보 시도
         }
       }
+    }
 
-      const msg =
-        lastErr?.response?.data?.message ||
-        lastErr?.message ||
-        "로그인 요청이 거부되었습니다. (BASIC)";
-      throw new Error(msg);
-    },
-    [setToken, setUser]
-  );
+    fetchUserLightweight();
+    return () => {
+      alive = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoggedIn]);
 
-  /**
-   * 회원가입
-   */
-const signup = useCallback(async ({ email, password }) => {
-  const bodyCandidates = [
-    { email, password },                                     // {email,password}
-    { userEmail: email, userPassword: password },            // {userEmail,userPassword}
-    { username: email, password },                           // {username,password}
-    { email, password, role: "ROLE_PATIENT" },               // role 포함
-    { userEmail: email, userPassword: password, role: "ROLE_PATIENT" },
-  ];
-
-  const makePayloads = (b) => ([
-    { data: b, headers: { "Content-Type": "application/json" } },
-    { data: new URLSearchParams(Object.entries(b)), headers: { "Content-Type": "application/x-www-form-urlencoded" } },
-  ]);
-
-  let lastErr;
-
-  for (const b of bodyCandidates) {
-    for (const p of makePayloads(b)) {
-      try {
-        const res = await api.post("/api/v2/auth/signup", p.data, {
+  // ---------------------------------------------------------------------------
+  // BASIC 로그인 (확정 스펙)
+  // POST /api/v2/auth/login  Body: { email, password } (JSON)
+  // ---------------------------------------------------------------------------
+  const loginBasic = useCallback(async ({ email, password }) => {
+    try {
+      const res = await api.post(
+        "/api/v2/auth/login",
+        { email, password },
+        {
           withCredentials: true,
-          headers: p.headers,
-        });
-
-        const body = res?.data;
-        if (body?.isSuccess || res.status === 200 || res.status === 201) {
-          return true;
+          headers: { "Content-Type": "application/json" },
         }
-        throw new Error(body?.message || "회원가입 실패");
+      );
+
+      const parsed = extractTokenAndProfile(res?.data);
+      if (!parsed.ok || !parsed.token) {
+        // 서버가 성공/실패 메시지 포맷을 다르게 줄 수 있어 보완 메시지 생성
+        const msg =
+          res?.data?.message ||
+          res?.data?.results?.message ||
+          "로그인 실패";
+        throw new Error(msg);
+      }
+
+      // 토큰/사용자 저장
+      saveToken(parsed.token);
+      setToken(parsed.token);
+
+      const nextUser = {
+        name: parsed.name ?? null,
+        role: parsed.role ?? "ROLE_PATIENT",
+      };
+      setUser(nextUser);
+      saveUser(nextUser);
+
+      return { accessToken: parsed.token, ...nextUser };
+    } catch (e) {
+      const msg =
+        e?.response?.data?.message ||
+        e?.message ||
+        "로그인 요청이 거부되었습니다.";
+      throw new Error(msg);
+    }
+  }, []);
+
+  // ---------------------------------------------------------------------------
+  // 회원가입
+  // ---------------------------------------------------------------------------
+  const signup = useCallback(async ({ email, password }) => {
+    // 바디 키가 불명확할 때 호환 시도(팀 상황 따라 하나만 남겨도 됨)
+    const bodyCandidates = [
+      { email, password },
+      { userEmail: email, userPassword: password },
+      { username: email, password },
+      { email, password, role: "ROLE_PATIENT" },
+      { userEmail: email, userPassword: password, role: "ROLE_PATIENT" },
+    ];
+
+    let lastErr;
+    for (const b of bodyCandidates) {
+      try {
+        const res = await api.post("/api/v2/auth/signup", b, {
+          withCredentials: true,
+          headers: { "Content-Type": "application/json" },
+        });
+        const ok =
+          res?.data?.isSuccess ||
+          String(res?.data?.code || "").includes("OK") ||
+          [200, 201].includes(res?.status);
+        if (ok) return true;
+        throw new Error(res?.data?.message || "회원가입 실패");
       } catch (e) {
         lastErr = e;
       }
     }
-  }
 
-  const msg =
-    lastErr?.response?.data?.message ||
-    lastErr?.message ||
-    "회원가입 요청이 거부되었습니다. (바디 형식 불일치 가능)";
-  throw new Error(msg);
-}, []);
+    const msg =
+      lastErr?.response?.data?.message ||
+      lastErr?.message ||
+      "회원가입 요청이 거부되었습니다.";
+    throw new Error(msg);
+  }, []);
 
-
-  /** 소셜 콜백 결과로 로그인(카카오/구글 공통) */
+  // ---------------------------------------------------------------------------
+  // 소셜 콜백 결과 기반 로그인 (카카오/구글 공통)
+  // ---------------------------------------------------------------------------
   const loginWithResults = useCallback((results) => {
     if (!results?.accessToken) throw new Error("엑세스 토큰 없음");
 
-    localStorage.setItem("accessToken", results.accessToken);
+    saveToken(results.accessToken);
     setToken(results.accessToken);
 
-    const nextUser = { name: results.name ?? null, role: results.role ?? "ROLE_PATIENT" };
+    const nextUser = {
+      name: results.name ?? null,
+      role: results.role ?? "ROLE_PATIENT",
+    };
     setUser(nextUser);
-    localStorage.setItem("user", JSON.stringify(nextUser));
+    saveUser(nextUser);
   }, []);
 
+  // ---------------------------------------------------------------------------
+  // 이름 저장 (/api/v2/user/name) : 인터셉터가 토큰 자동 첨부
+  // ---------------------------------------------------------------------------
   const setUserName = useCallback(
     async (name) => {
+      const trimmed = String(name || "").trim();
+      if (!trimmed) return;
+
       try {
-        await api.post(
-          "/api/v2/auth/name",
-          null,
-          { params: { name }, headers: { Authorization: `Bearer ${token}` } }
-        );
-      } catch {
-        // 서버 저장 실패해도 프론트는 업데이트
+        const res = await api.post("/api/v2/user/name", { name: trimmed });
+        const ok =
+          res?.data?.isSuccess ||
+          String(res?.data?.code || "").includes("OK") ||
+          res?.status === 200;
+        if (!ok) throw new Error(res?.data?.message || "이름 저장 실패");
+      } catch (e) {
+        // 서버 저장 실패 시 무시하고 프론트 상태만 업데이트
+        return;
       }
-      const updated = { ...(user || {}), name };
+
+      const updated = { ...(user || {}), name: trimmed };
       setUser(updated);
-      localStorage.setItem("user", JSON.stringify(updated));
+      saveUser(updated);
     },
-    [token, user]
+    [user]
   );
 
-  /** 로그아웃 */
+  // ---------------------------------------------------------------------------
+  // 로그아웃
+  // ---------------------------------------------------------------------------
   const logout = useCallback(() => {
-    localStorage.removeItem("accessToken");
-    localStorage.removeItem("user");
+    saveToken("");
+    saveUser(null);
     setToken("");
     setUser(null);
     nav("/", { replace: true });
@@ -203,8 +300,4 @@ const signup = useCallback(async ({ email, password }) => {
   );
 
   return <AuthCtx.Provider value={value}>{children}</AuthCtx.Provider>;
-}
-
-export function useAuth() {
-  return useContext(AuthCtx);
 }

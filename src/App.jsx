@@ -1,3 +1,6 @@
+// [코드 제목] App.jsx (라우터 + AuthProvider)
+// 파일: src/App.jsx
+
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 
 import LandingPage from "./pages/LandingPage";

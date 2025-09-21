@@ -137,3 +137,64 @@
 .col--actions { padding-right: 12px; }            
 .doclist__row--head .col--actions { padding-right: 12px; }  
 
+/* ===== 모달 (수락/거절 확인) ===== */
+.dl-modal__backdrop{
+  position: fixed;
+  inset: 0;
+  background: rgba(17, 24, 39, 0.45);  /* 어두운 오버레이 */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 60;
+  backdrop-filter: blur(2px);          /* 배경 살짝 블러 */
+}
+
+.dl-modal{
+  width: 380px;
+  max-width: calc(100% - 40px);
+  background: #fff;
+  border-radius: 14px;
+  box-shadow: 0 20px 60px rgba(0,0,0,.18);
+  padding: 18px 18px 16px;
+}
+
+.dl-modal__title{
+  margin: 8px 0 14px;
+  text-align: center;
+  font-size: 16px;
+  font-weight: 800;
+  color: #111827;
+}
+
+.dl-modal__actions{
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  padding-top: 4px;
+}
+
+/* 모달 버튼(디자인 참고) */
+.dl-btn{
+  height: 40px;
+  padding: 0 22px;
+  font-weight: 800;
+  border-radius: 999px;          /* pill 형태 */
+  border: 0;
+  cursor: pointer;
+}
+
+.dl-btn--ghost{
+  background: #fff;
+  color: #111827;
+  box-shadow: 0 0 0 1px #e5e7eb inset, 0 4px 16px rgba(0,0,0,.06);
+}
+.dl-btn--ghost:hover{ filter: brightness(0.98); }
+
+.dl-btn--primary{
+  background: #3b82f6; /* 파란 버튼 */
+  color: #fff;
+  box-shadow: 0 8px 22px rgba(59,130,246,.35);
+}
+.dl-btn--primary:hover{ filter: brightness(0.98); }
+
+

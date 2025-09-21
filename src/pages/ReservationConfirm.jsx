@@ -1,5 +1,5 @@
 // src/pages/ReservationConfirm.jsx
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
 import { api } from "../auth/axios";
@@ -9,23 +9,58 @@ import "./tele-reservation.css";
 export default function ReservationConfirm() {
   const { reservationId } = useParams();
   const nav = useNavigate();
-  const { state } = useLocation(); // Apply에서 전달한 interpretationOption, memo
-  const selectedOptions = state?.interpretationOption || []; // ["SIGN_TO_TEXT","VOICE_TO_TEXT"]
+  const { state } = useLocation();
+  const selectedOptions = state?.interpretationOption || []; // ["VOICE_TO_TEXT", "SIGN_TO_TEXT"]
 
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
-  const [data, setData] = useState(null); // 서버 응답 results
+  const [data, setData] = useState(null);
+
+  // state / sessionStorage 메모 폴백
+  const memoFromState = (state?.memo || "").trim();
+  let memoFromSession = "";
+  try {
+    memoFromSession = (sessionStorage.getItem(`lastMemo:${reservationId}`) || "").trim();
+  } catch (e) {
+    console.debug("[Storage] getItem failed", e);
+  }
+
+  const statusLabelMap = {
+    REQUESTED: "예약 확인 중",
+    CONFIRMED: "예약 완료",
+    CANCELED:  "예약 취소",
+    COMPLETED: "진료 완료",
+  };
+
+  const mockSafe = useMemo(() => ({
+    dept: data?.speciality || "내과",
+    hospital: data?.hospitalName || "이화여대 내과 병원",
+    doctor: data?.doctorName || "의사",
+    date: data?.slotDate || "",
+    time: data ? `${data.startTime} ~ ${data.endTime}` : "",
+    rrn: data?.residentId || "******-*******",
+    name: data?.name || "",
+    status: data?.status || "REQUESTED",
+    symptom: data?.symptom || "-",
+    symptomDuration: data?.symptomDuration ?? null,
+    description:
+      (data?.description ?? "").trim() ||
+      memoFromState ||
+      memoFromSession ||
+      "-",
+  }), [data, memoFromState, memoFromSession]);
 
   async function fetchDetail() {
     try {
       setLoading(true);
       setErr("");
       const { data } = await api.get(`/api/v2/reservation/${reservationId}`);
-      console.log("[DEBUG] 예약 상세 응답:", data);
       setData(data?.results || null);
     } catch (e) {
-      console.error(e);
-      setErr("예약 정보를 불러오는 중 오류가 발생했어요.");
+      console.error("[API ERROR] get reservation", e?.response?.status, e?.response?.data);
+      const status = e?.response?.status;
+      if (status === 404) setErr("예약을 찾을 수 없어요. (404)");
+      else setErr(`예약 정보를 불러오는 중 오류가 발생했어요. (${status ?? "network"})`);
     } finally {
       setLoading(false);
     }
@@ -34,64 +69,37 @@ export default function ReservationConfirm() {
   async function onCancel() {
     if (!window.confirm("예약을 취소하시겠습니까?")) return;
     try {
-      console.log("[DEBUG] 예약 취소 요청:", reservationId);
-      const { data } = await api.delete(`/api/v2/reservation/${reservationId}`);
-      console.log("[DEBUG] 예약 취소 응답:", data);
-
-   // 취소 후 의사 목록으로
-   try {
-     sessionStorage.removeItem(`lastMemo:${reservationId}`); // 메모 캐시 정리(옵션)
-   } catch (e) {
-     console.debug("[Storage] removeItem failed", e);
-   }
-   nav("/tele/doctor-list", {
-     replace: true,                      // 뒤로가기 눌러도 취소 전 화면 안 돌아오게
-     state: { flash: "예약을 취소했어요." } // (옵션) 목록에서 안내 띄우고 싶을 때
-   });
+      await api.delete(`/api/v2/reservation/${reservationId}`);
+      try {
+        sessionStorage.removeItem(`lastMemo:${reservationId}`);
+      } catch (e) {
+        console.debug("[Storage] removeItem failed", e);
+      }
+      nav("/tele/doctor-list", { replace: true, state: { flash: "예약을 취소했어요." } });
     } catch (e) {
-      console.error(e);
+      console.error("[API ERROR] cancel reservation", e?.response?.status, e?.response?.data);
       alert("예약 취소에 실패했어요.");
     }
   }
 
+  // 최초 조회 + 의사 수락 대기 중이면 5초 간격으로 폴링
   useEffect(() => {
-    fetchDetail();
+    let timer;
+    const load = async () => {
+      await fetchDetail();
+      // REQUESTED 상태면 폴링 시작/유지
+      timer = setInterval(async () => {
+        if (document.hidden) return; // 탭 비활성화 시 과도한 폴링 방지
+        await fetchDetail();
+      }, 5000);
+    };
+    load();
+    return () => timer && clearInterval(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reservationId]);
 
-  // 화면 표기용 가공 (메모 폴백: 서버 → state → sessionStorage)
-  const memoFromState = (state?.memo || "").trim();
-  let memoFromSession = "";
-try {
-  memoFromSession = (sessionStorage.getItem(`lastMemo:${reservationId}`) || "").trim();
-} catch (e) {
-  // 세션 읽기 실패는 무시
-  console.debug?.("[Storage] getItem failed", e);
-}
-
-  const descriptionFromServer =
-    (typeof data?.description === "string" && data.description.trim()) ? data.description.trim() : "";
-
-  const mockSafe = {
-    dept: data?.speciality || "내과",
-    hospital: data?.hospitalName || "이화여대 내과 병원",
-    doctor: data?.doctorName || "의사",
-    date: data?.slotDate || "",
-    time: data ? `${data.startTime} ~ ${data.endTime}` : "",
-    rrn: data?.residentId || "******-*******", // 서버에서 내려줌
-    name: data?.name || "",
-    status: data?.status || "REQUESTED",
-    symptom: data?.symptom || "-", // 서버는 한글(예: "두통")로 내려옴
-    symptomDuration: data?.symptomDuration ?? null,
-    description: descriptionFromServer || memoFromState || memoFromSession || "-",
-  };
-
-  const statusLabel = {
-    REQUESTED: "예약 확인 중",
-    CONFIRMED: "예약 완료",
-    CANCELED: "예약 취소",
-    COMPLETED: "진료 완료",
-  }[mockSafe.status] || mockSafe.status;
+  const statusLabel = statusLabelMap[mockSafe.status] || mockSafe.status;
+  const canEnter = mockSafe.status === "CONFIRMED" || mockSafe.status === "REQUESTED";
 
   return (
     <div className="telemed resv">
@@ -123,13 +131,11 @@ try {
                     state: { interpretationOption: selectedOptions },
                   })
                 }
-                disabled={mockSafe.status !== "CONFIRMED" && mockSafe.status !== "REQUESTED"}
+                disabled={!canEnter}
                 title={
-                  mockSafe.status === "CANCELED"
-                    ? "취소된 예약입니다."
-                    : mockSafe.status === "COMPLETED"
-                    ? "이미 진료가 완료되었습니다."
-                    : ""
+                  canEnter
+                    ? ""
+                    : "의사가 예약을 수락하면 ‘진료 받으러 가기’가 활성화됩니다."
                 }
               >
                 진료 받으러 가기

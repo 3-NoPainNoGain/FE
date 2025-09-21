@@ -1,5 +1,5 @@
 // src/lib/wsUrl.js
-export function buildWsUrl(path = "/fastapi/ws", hostOverride) {
+export function buildWsUrl(path = "/ws/signaling", hostOverride) {
   if (!path.startsWith("/")) path = `/${path}`;
   const isHttps = window.location.protocol === "https:";
   const wsProto = isHttps ? "wss" : "ws";

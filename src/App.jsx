@@ -5,16 +5,14 @@ import LandingPage from "./pages/LandingPage";
 import VisitPrepare from "./pages/VisitPrepare";
 import InPersonSession from "./pages/InPersonSession";
 import DiagnosisSummaryPage from "./pages/DiagnosisSummaryPage.jsx";
+import WebRtcSession from "./pages/WebRtcSession";
 
 import TeleDoctorList from "./pages/TeleDoctorList";
 import TeleDoctorDetail from "./pages/TeleDoctorDetail";
 import TeleApplyWizard from "./pages/TeleApplyWizard";
 import ReservationConfirm from "./pages/ReservationConfirm";
 
-// ✅ 둘 다 실제로 라우트에서 씁니다
 import OAuthCallback from "./pages/OAuthCallback";
-import SessionPage from "./pages/SessionPage";
-
 import { AuthProvider } from "./auth/AuthContext";
 
 export default function App() {
@@ -35,13 +33,13 @@ export default function App() {
           <Route path="/tele/doctor/:doctorId" element={<TeleDoctorDetail />} />
           <Route path="/tele/apply/:doctorId" element={<TeleApplyWizard />} />
 
-          {/* ✅ 예약 확인(파라미터 필수) */}
+          {/* 예약 확인 */}
           <Route path="/reservation/confirm/:reservationId" element={<ReservationConfirm />} />
 
-          {/* ✅ 텔레 진료실 (Apply/Confirm에서 이동) */}
-          <Route path="/tele/session/:reservationId" element={<SessionPage />} />
+          {/* WebRTC 진료실 */}
+          <Route path="/tele/session/:reservationId" element={<WebRtcSession />} />
 
-          {/* ✅ OAuth 콜백 실제 사용 시 */}
+          {/* OAuth 콜백 */}
           <Route path="/oauth/:provider/callback" element={<OAuthCallback />} />
 
           {/* fallback */}

@@ -1,37 +1,98 @@
 // src/pages/TeleDoctorDetail.jsx
+import { useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
+import { api } from "../auth/axios";        // ← axios 인스턴스
 import "./session.css";
 import "./telemed-detail.css";
 
+/** 상태 배지 (open/closed) */
 function StatusBadge({ status }) {
-  const text = status === "open" ? "진료 중" : "진료 종료";
-  const klass =
-    status === "open" ? "d-badge d-badge--open" : "d-badge d-badge--closed";
+  const isOpen = status === "open";
+  const text = isOpen ? "진료 중" : "진료 종료";
+  const klass = isOpen ? "d-badge d-badge--open" : "d-badge d-badge--closed";
   return <span className={klass}>{text}</span>;
+}
+
+/** API 응답 → 화면 모델 정규화 */
+function normalizeDoctor(results = {}) {
+  // status: "진료 가능" | "진료 종료" → "open" | "closed"
+  const status =
+    results.status === "진료 가능"
+      ? "open"
+      : results.status === "진료 종료"
+      ? "closed"
+      : "closed";
+
+  // 소개문
+  const intro =
+    results.introduction ??
+    results.introduce ??
+    results.description ??
+    "";
+
+  // 태그 리스트 → 문자열 배열
+  const tagList = Array.isArray(results.doctorTagList)
+    ? results.doctorTagList.map((t) => t?.name).filter(Boolean)
+    : [];
+
+  // speciality(전문과)도 표시용으로 붙여주면 좋음
+  const speciality = results.speciality ?? results.specialty ?? null;
+
+  return {
+    id: String(results.id ?? ""),
+    name: results.name ?? "의사",
+    hospital: results.hospitalName ?? "병원",
+    status,
+    intro,
+    specialties: tagList.length > 0 ? tagList : speciality ? [speciality] : [],
+  };
 }
 
 export default function TeleDoctorDetail() {
   const { doctorId } = useParams();
   const nav = useNavigate();
 
-  // 목업 데이터 (나중에 API로 교체)
-  const doc = {
-    id: doctorId ?? "0",
-    hospital: "이화여대 내과 병원",
-    name: "이하은 의사",
-    status: "open",
-    intro: "안녕하세요. 내과 전문의 이하은입니다.어쩌구",
-    specialties: [
-      "만성질환 관리: 고혈압, 당뇨, 고지혈증",
-      "소화기 질환: 위염, 역류성 식도염, 과민성 장증후군 등",
-      "호흡기 질환: 감기, 기관지염, 천식 등",
-      "건강 상담 및 생활습관 관리",
-    ],
-  };
+  const [doc, setDoc] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState("");
 
-  const introLines = String(doc.intro || "").split("\n");
-  const specialties = Array.isArray(doc.specialties) ? doc.specialties : [];
+  useEffect(() => {
+    let alive = true;
+
+    async function load() {
+      setLoading(true);
+      setErr("");
+      try {
+        const res = await api.get(`/api/v2/doctor/${doctorId}`);
+        const body = res?.data ?? {};
+        const results = body?.results ?? body?.data ?? {};
+        const normalized = normalizeDoctor(results);
+        if (!alive) return;
+        setDoc(normalized);
+      } catch (e) {
+        if (!alive) return;
+        setErr(e?.response?.data?.message || e?.message || "상세 조회 실패");
+      } finally {
+        if (alive) setLoading(false);
+      }
+    }
+
+    load();
+    return () => {
+      alive = false;
+    };
+  }, [doctorId]);
+
+  // 줄바꿈 분리
+  const introLines = useMemo(
+    () => String(doc?.intro || "").split("\n"),
+    [doc]
+  );
+  const specialties = useMemo(
+    () => (Array.isArray(doc?.specialties) ? doc.specialties : []),
+    [doc]
+  );
 
   return (
     <div className="telemed tele-detail">
@@ -45,36 +106,63 @@ export default function TeleDoctorDetail() {
         <div className="tele-detail__head">
           <div className="tele-detail__meta">
             <div className="tele-detail__hospital">
-              {doc.hospital} · <StatusBadge status={doc.status} />
+              {doc?.hospital || ""}{" "}
+              {doc && (
+                <>
+                  · <StatusBadge status={doc.status} />
+                </>
+              )}
             </div>
-            <h1 className="tele-detail__name">{doc.name}</h1>
+            <h1 className="tele-detail__name">
+              {doc?.name || (loading ? "불러오는 중…" : "의사")}
+            </h1>
           </div>
 
           <button
             className="d-btn d-btn--primary"
             onClick={() => nav(`/tele/apply/${doctorId}`)}
+            disabled={!doc || doc.status !== "open"}
+            title={!doc || doc.status !== "open" ? "진료 종료" : "진료 신청하기"}
           >
             진료 신청하기
           </button>
         </div>
 
-        {/* 소개 */}
-        <section className="tele-detail__section">
-          <div className="tele-detail__intro">
-            {introLines.map((l, idx) => (
-              <p key={idx}>{l}</p>
-            ))}
-          </div>
-        </section>
+        {/* 로딩/에러 */}
+        {loading && (
+          <div style={{ padding: 20, color: "#6b7280" }}>불러오는 중…</div>
+        )}
+        {!loading && err && (
+          <div style={{ padding: 20, color: "#ef4444" }}>{err}</div>
+        )}
 
-        {/* 전문 진료 분야 */}
-        <section className="tele-detail__section">
-          <ul className="tele-detail__list">
-            {specialties.map((s, i) => (
-              <li key={i}>{s}</li>
-            ))}
-          </ul>
-        </section>
+        {/* 소개 */}
+        {!loading && !err && (
+          <>
+            <section className="tele-detail__section">
+              <div className="tele-detail__intro">
+                {introLines.filter(Boolean).length > 0 ? (
+                  introLines.map((l, idx) => <p key={idx}>{l}</p>)
+                ) : (
+                  <p style={{ color: "#6b7280" }}>소개가 등록되지 않았습니다.</p>
+                )}
+              </div>
+            </section>
+
+            {/* 전문 진료 분야 */}
+            <section className="tele-detail__section">
+              {specialties.length > 0 ? (
+                <ul className="tele-detail__list">
+                  {specialties.map((s, i) => (
+                    <li key={i}>{s}</li>
+                  ))}
+                </ul>
+              ) : (
+                <p style={{ color: "#6b7280" }}>전문 진료 분야 정보가 없습니다.</p>
+              )}
+            </section>
+          </>
+        )}
       </main>
     </div>
   );

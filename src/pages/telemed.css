@@ -116,3 +116,39 @@
 
 
 .doc-card-link { text-decoration: none; color: inherit; }
+
+.pager {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: center;
+  margin: 16px 0 32px;
+}
+
+.pager__num,
+.pager__nav {
+  min-width: 36px;
+  height: 36px;
+  padding: 0 10px;
+  border-radius: 8px;
+  border: 1px solid var(--gray-200, #e5e7eb);
+  background: #fff;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.pager__num.is-active {
+  font-weight: 700;
+  border-color: var(--primary, #2563eb);
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.1);
+}
+
+.pager__nav:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.pager__dots {
+  padding: 0 4px;
+}
+

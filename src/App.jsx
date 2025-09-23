@@ -1,10 +1,4 @@
-<<<<<<< HEAD
-// src/App.jsx
-=======
-// [코드 제목] App.jsx (라우터 + AuthProvider)
 // 파일: src/App.jsx
-
->>>>>>> 16e453db09509dd9790b4407e138136a2e203cb5
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 
 import LandingPage from "./pages/LandingPage";
@@ -27,10 +21,7 @@ import DoctorReservationList from "./pages/DoctorReservationList";
 export default function App() {
   return (
     <BrowserRouter>
-<<<<<<< HEAD
-=======
       {/* ⬅️ Router 안쪽에 AuthProvider를 둡니다 */}
->>>>>>> 16e453db09509dd9790b4407e138136a2e203cb5
       <AuthProvider>
         <Routes>
           {/* 랜딩 */}
@@ -51,6 +42,12 @@ export default function App() {
 
           {/* WebRTC 진료실 */}
           <Route path="/tele/session/:reservationId" element={<WebRtcSession />} />
+
+          {/* 의사용 단축 URL: /doctor → 부모 세션 URL로 리다이렉트, roleHint 전달 */}
+          <Route
+            path="/tele/session/:reservationId/doctor"
+            element={<Navigate to=".." replace state={{ roleHint: "doctor" }} />}
+          />
 
           {/* 의사 뷰 */}
           <Route path="/doctor/reservations" element={<DoctorReservationList />} />

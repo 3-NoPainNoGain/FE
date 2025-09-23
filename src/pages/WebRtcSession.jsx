@@ -1,4 +1,3 @@
-// src/pages/WebRtcSession.jsx
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useParams, useLocation } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
@@ -43,7 +42,14 @@ async function makeAnswer(pc) {
 export default function WebRtcSession() {
   // URL 파라미터/상태
   const { reservationId: ridParam } = useParams();
-  const { state } = useLocation(); // { interpretationOption: [...] }
+  const { state, search } = useLocation(); // state.roleHint 또는 ?role=doctor
+  const qp = new URLSearchParams(search);
+  const roleHintParam = qp.get("role");
+  const roleHint =
+    (state && state.roleHint) ||
+    (roleHintParam && (roleHintParam.toLowerCase() === "doctor" ? "doctor" : "patient")) ||
+    null;
+
   const selectedOptions = state?.interpretationOption || [];
   const enableSign = selectedOptions.includes("SIGN_TO_TEXT");
   const enableVoice = selectedOptions.includes("VOICE_TO_TEXT");
@@ -109,8 +115,8 @@ export default function WebRtcSession() {
   async function openCam(currentRole) {
     try {
       localStreamRef.current?.getTracks?.().forEach((t) => t.stop());
-    } catch {
-      /* noop */
+    } catch (e) {
+      // ignore cleanup error (noop)
     }
     // 의사: 오디오+비디오, 환자: 비디오만
     const constraints = { video: true, audio: currentRole === "ROLE_DOCTOR" };
@@ -123,8 +129,8 @@ export default function WebRtcSession() {
       lv.muted = true;
       try {
         await lv.play();
-      } catch {
-        /* noop */
+      } catch (e) {
+        // autoplay may be blocked; safe to ignore
       }
     }
   }
@@ -148,8 +154,8 @@ export default function WebRtcSession() {
       let payload = ev.data;
       try {
         payload = JSON.parse(ev.data);
-      } catch {
-        /* noop */
+      } catch (e) {
+        // ignore malformed message
       }
       if (!payload || typeof payload !== "object") return;
       if (payload.type === "caption" && payload.text) {
@@ -202,13 +208,13 @@ export default function WebRtcSession() {
     if (sttOn) {
       try {
         sttRef.current.stop();
-      } catch {
-        /* noop */
+      } catch (e) {
+        // noop
       }
       try {
         mediaRecRef.current?.rec?.stop();
-      } catch {
-        /* noop */
+      } catch (e) {
+        // noop
       }
       setSttOn(false);
     } else {
@@ -253,12 +259,11 @@ export default function WebRtcSession() {
   }, [role, sttOn, sendCaption, roomId, reservationId]);
 
   async function joinAs(roleHint) {
-    if (!reservationId) return alert("예약번호를 입력해주세요!");
+    if (!reservationId) return alert("예약번호가 없습니다.");
     let res;
     try {
       res = await joinReservation(reservationId, roleHint);
     } catch (err) {
-      // 게스트 모드 또는 단순 개발 편의
       if (!ENABLE_GUEST_MODE || (err.status && err.status !== 401)) {
         return alert(err.message || "예약 참가 실패");
       }
@@ -318,10 +323,14 @@ export default function WebRtcSession() {
         const pc = peersRef.current.get("peer");
         if (!pc) return;
         if (body == null) {
-          pc.addIceCandidate(null).catch(() => {});
+          pc.addIceCandidate(null).catch(() => {
+            /* noop */
+          });
           return;
         }
-        pc.addIceCandidate(new RTCIceCandidate(body)).catch(() => {});
+        pc.addIceCandidate(new RTCIceCandidate(body)).catch(() => {
+          /* noop */
+        });
       },
       onLeave: () => endCall(),
     });
@@ -354,8 +363,8 @@ export default function WebRtcSession() {
       if (sttRef.current) {
         try {
           sttRef.current.stop();
-        } catch {
-          /* noop */
+        } catch (e) {
+          // noop
         }
       }
       setSttOn(false);
@@ -366,32 +375,32 @@ export default function WebRtcSession() {
     if (sttOn) {
       try {
         mediaRecRef.current?.rec?.stop();
-      } catch {
-        /* noop */
+      } catch (e) {
+        // noop
       }
       try {
         sttRef.current?.stop?.();
-      } catch {
-        /* noop */
+      } catch (e) {
+        // noop
       }
     }
 
     try {
       signalingRef.current?.sendLeave?.();
-    } catch {
-      /* noop */
+    } catch (e) {
+      // noop
     }
     try {
       signalingRef.current?.close?.();
-    } catch {
-      /* noop */
+    } catch (e) {
+      // noop
     }
     signalingRef.current = null;
 
     try {
       dataChannelRef.current?.close?.();
-    } catch {
-      /* noop */
+    } catch (e) {
+      // noop
     }
     dataChannelRef.current = null;
 
@@ -400,8 +409,8 @@ export default function WebRtcSession() {
 
     try {
       localStreamRef.current?.getTracks?.().forEach((t) => t.stop());
-    } catch {
-      /* noop */
+    } catch (e) {
+      // noop
     }
 
     const lv = localVideoRef.current,
@@ -410,16 +419,16 @@ export default function WebRtcSession() {
       try {
         lv.pause();
         lv.srcObject = null;
-      } catch {
-        /* noop */
+      } catch (e) {
+        // noop
       }
     }
     if (rv) {
       try {
         rv.pause();
         rv.srcObject = null;
-      } catch {
-        /* noop */
+      } catch (e) {
+        // noop
       }
     }
 
@@ -430,31 +439,19 @@ export default function WebRtcSession() {
     console.log("[RTC] call ended and resources cleaned");
   }, [sttOn]);
 
-  // 창 닫기 보호
-  useEffect(() => {
-    const handler = () => {
-      endCall();
-    };
-    window.addEventListener("beforeunload", handler);
-    return () => window.removeEventListener("beforeunload", handler);
-  }, [endCall]);
-
-  // 언마운트 시 정리
-  useEffect(() => () => endCall(), [endCall]);
-
-  // URL에서 예약번호 자동 주입
+  // 예약번호 파라미터 주입
   useEffect(() => {
     if (ridParam) setReservationId(String(ridParam));
   }, [ridParam]);
 
-  // 예약번호가 세팅되면 자동으로 환자 참가
+  // ✅ 자동 참가: URL/state로 전달된 역할 힌트에 따라 자동 join
   const autoJoinRef = useRef(false);
   useEffect(() => {
-    if (!autoJoinRef.current && reservationId) {
-      autoJoinRef.current = true;
-      joinAs("patient");
-    }
-  }, [reservationId]);
+    if (!reservationId || autoJoinRef.current) return;
+    autoJoinRef.current = true;
+    const which = roleHint === "doctor" ? "doctor" : "patient";
+    joinAs(which);
+  }, [reservationId, roleHint]);
 
   // 좌/우 자막
   const leftCaption = role === "ROLE_DOCTOR" ? doctorCaption : patientCaption;
@@ -468,23 +465,14 @@ export default function WebRtcSession() {
 
         {/* 상단 툴바 */}
         <div className="tele__toolbar">
+          {/* ✅ 실서버 전환: 예약번호 입력은 표시만(편의상 비활성화) */}
           <div className="tele__room">
             <label className="tele__label">예약번호</label>
-            <input
-              className="tele__input"
-              placeholder="예: 123"
-              value={reservationId}
-              onChange={(e) => setReservationId(e.target.value)}
-            />
+            <input className="tele__input" value={reservationId} disabled readOnly />
           </div>
 
           <div className="tele__actions">
-            <button className="btn btn--ghost" onClick={() => joinAs("patient")}>
-              환자로 참가
-            </button>
-            <button className="btn btn--ghost" onClick={() => joinAs("doctor")}>
-              의사로 참가
-            </button>
+            {/* 자동 참가가 되므로 수동 참가 버튼은 숨김/제거 */}
             <button className="btn btn--primary" onClick={startCall}>
               진료 시작
             </button>
@@ -515,8 +503,7 @@ export default function WebRtcSession() {
                   height: "100%",
                   objectFit: "cover",
                   borderRadius: "12px",
-                  display:
-                    role === "ROLE_PATIENT" && enableSign ? "none" : "block",
+                  display: role === "ROLE_PATIENT" && enableSign ? "none" : "block",
                 }}
               />
               {role === "ROLE_PATIENT" && enableSign && (

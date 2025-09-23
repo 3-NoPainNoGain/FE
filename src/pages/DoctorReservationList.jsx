@@ -1,39 +1,95 @@
+// src/pages/DoctorReservationList.jsx
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
 import "./doctor-reservation-list.css";
 
-const STATUS = {
-  PENDING: "PENDING",
-  ACCEPTED: "ACCEPTED",
-  REJECTED: "REJECTED",
-};
+import {
+  STATUS,                // 내부 표준: { PENDING, ACCEPTED, REJECTED, COMPLETED }
+  listReservations,
+  getReservation,
+  setReservationDecision, // (id, isAccept:boolean) → POST /reservation/{id}/accept
+} from "../services/reservation";
 
-const seed = [
-  { id: 1, dateLabel: "2025.09.08 | 11:00~11:20", name: "이하은", symptoms: "기침, 가래", status: STATUS.PENDING,  applyPath: "/doctor/applications/1" },
-  { id: 2, dateLabel: "2025.09.08 | 11:00~11:20", name: "이하은", symptoms: "기침, 가래, 코막힘, 두통", status: STATUS.PENDING,  applyPath: "/doctor/applications/2" },
-  { id: 3, dateLabel: "2025.09.08 | 11:00~11:20", name: "이하은", symptoms: "기침, 가래", status: STATUS.PENDING,  applyPath: "/doctor/applications/3" },
-  { id: 4, dateLabel: "2025.09.08 | 11:00~11:20", name: "이하은", symptoms: "기침, 가래", status: STATUS.REJECTED, applyPath: "/doctor/applications/4" },
-  { id: 5, dateLabel: "2025.09.08 | 11:00~11:20", name: "이하은", symptoms: "기침, 가래", status: STATUS.ACCEPTED, applyPath: "/doctor/applications/5" },
-  { id: 6, dateLabel: "2025.09.08 | 11:00~11:20", name: "이하은", symptoms: "기침, 가래", status: STATUS.ACCEPTED, applyPath: "/doctor/applications/6" },
-];
+/* BE 상태 → UI 표준 상태 매핑 */
+function normalizeStatus(raw) {
+  const s = String(raw || "").toUpperCase();
+  // 대기
+  if (s === "REQUESTED" || s === "PENDING" || s === "WAITING") return STATUS.PENDING;
+  // 수락됨
+  if (s === "CONFIRMED" || s === "ACCEPTED" || s === "ACTIVE") return STATUS.ACCEPTED;
+  // 거절/취소
+  if (s === "REJECTED" || s === "CANCELED" || s === "CANCELLED") return STATUS.REJECTED;
+  // 완료
+  if (s === "COMPLETED" || s === "DONE" || s === "FINISHED") return STATUS.COMPLETED;
+  console.warn("[DoctorReservationList] unknown status:", raw);
+  return STATUS.PENDING;
+}
 
-async function fetchReservations() {
-  return new Promise((r) => setTimeout(() => r(seed), 200));
+/* 목록에 실명 붙이기 (N+1) */
+async function hydrateWithNames(items) {
+  const details = await Promise.all(
+    items.map((it) =>
+      getReservation(it.reservationId)
+        .then((d) => ({
+          id: it.reservationId,
+          name: d?.name || `환자 #${it.patientId}`,
+        }))
+        .catch(() => ({
+          id: it.reservationId,
+          name: `환자 #${it.patientId}`,
+        }))
+    )
+  );
+  const nameMap = new Map(details.map((d) => [d.id, d.name]));
+  return items.map((it) => ({
+    id: it.reservationId,
+    name: nameMap.get(it.reservationId) || `환자 #${it.patientId}`,
+    symptoms: it.symptom,
+    status: normalizeStatus(it.status), // ← 정규화 적용
+    dateLabel: `${String(it.slotDate || "").replaceAll("-", ".")} | ${String(
+      it.startTime || ""
+    ).slice(0, 5)}~${String(it.endTime || "").slice(0, 5)}`,
+    applyPath: `/doctor/applications/${it.reservationId}`,
+  }));
 }
 
 export default function DoctorReservationList() {
   const [rows, setRows] = useState([]);
-  const [confirm, setConfirm] = useState({ open: false, id: null, action: null }); // action: 'ACCEPT' | 'REJECT'
+  const [loading, setLoading] = useState(true);  // ESLint 경고 제거용으로 UI에 노출
+  const [err, setErr] = useState("");
+
+  const [confirm, setConfirm] = useState({
+    open: false,
+    id: null,
+    action: null, // "ACCEPT" | "REJECT"
+  });
 
   useEffect(() => {
     let alive = true;
-    fetchReservations().then((list) => {
-      if (!alive) return;
-      setRows(list);
-    });
+
+    const fetchList = async () => {
+      try {
+        setLoading(true);
+        setErr("");
+        // BE가 results.items로 줄 수 있어 안전 처리
+        const resp = await listReservations({ page: 0, size: 10 });
+        const items = resp?.items || resp?.results?.items || [];
+        const merged = await hydrateWithNames(items);
+        if (alive) setRows(merged);
+      } catch (e) {
+        console.error("[DoctorReservationList] list error:", e);
+        if (alive) setErr("예약 목록을 불러오는 중 오류가 발생했어요.");
+      } finally {
+        if (alive) setLoading(false);
+      }
+    };
+
+    fetchList();
+    const timer = setInterval(fetchList, 5000); // 5초마다 갱신
     return () => {
       alive = false;
+      clearInterval(timer);
     };
   }, []);
 
@@ -42,16 +98,28 @@ export default function DoctorReservationList() {
     [rows]
   );
 
-  const setStatus = (id, next) =>
-    setRows((prev) => prev.map((r) => (r.id === id ? { ...r, status: next } : r)));
-
   const ask = (id, action) => setConfirm({ open: true, id, action });
   const close = () => setConfirm({ open: false, id: null, action: null });
-  const confirmAction = () => {
+
+  const confirmAction = async () => {
     if (!confirm.open || !confirm.id) return close();
-    if (confirm.action === "ACCEPT") setStatus(confirm.id, STATUS.ACCEPTED);
-    if (confirm.action === "REJECT") setStatus(confirm.id, STATUS.REJECTED);
-    close();
+    const isAccept = confirm.action === "ACCEPT";
+    // BE: /reservation/{id}/accept {accept: true|false}
+    // true → CONFIRMED, false → CANCELED(또는 REJECTED)
+    const nextStatus = isAccept ? STATUS.ACCEPTED : STATUS.REJECTED;
+
+    try {
+      await setReservationDecision(confirm.id, isAccept);
+      // 즉시 UI 반영
+      setRows((prev) =>
+        prev.map((r) => (r.id === confirm.id ? { ...r, status: nextStatus } : r))
+      );
+    } catch (e) {
+      console.error("[DoctorReservationList] decision error:", e);
+      alert("요청 처리에 실패했어요. 다시 시도해 주세요.");
+    } finally {
+      close();
+    }
   };
 
   const titleText =
@@ -69,6 +137,10 @@ export default function DoctorReservationList() {
               <h2>진료 예약 관리</h2>
               <div className="doclist__meta">대기 {pendingCount}건</div>
             </header>
+
+            {/* 로딩/에러 배너: 경고 제거 및 상태 가시화 */}
+            {loading && <div className="doclist__banner">불러오는 중…</div>}
+            {!!err && <div className="doclist__banner doclist__banner--error">{err}</div>}
 
             <div className="doclist__table" role="table" aria-label="진료 예약 목록">
               <div className="doclist__thead" role="rowgroup">
@@ -95,6 +167,7 @@ export default function DoctorReservationList() {
                     </div>
 
                     <div className="col col--actions" role="cell">
+                      {/* 대기중: 수락/거절 버튼 */}
                       {r.status === STATUS.PENDING && (
                         <div className="actions">
                           <button
@@ -114,11 +187,25 @@ export default function DoctorReservationList() {
                         </div>
                       )}
 
+                      {/* 거절됨 */}
                       {r.status === STATUS.REJECTED && (
                         <span className="state state--rejected">거절</span>
                       )}
 
+                      {/* 수락됨 → 진료 입장 버튼 */}
                       {r.status === STATUS.ACCEPTED && (
+                        <Link
+                          to={`/tele/session/${r.id}`}
+                          state={{ roleHint: "doctor" }}
+                          className="btn btn--primary"
+                          aria-label="진료 입장"
+                        >
+                          진료 입장
+                        </Link>
+                      )}
+
+                      {/* 완료됨 */}
+                      {r.status === STATUS.COMPLETED && (
                         <span className="state state--accepted">수락 완료</span>
                       )}
                     </div>

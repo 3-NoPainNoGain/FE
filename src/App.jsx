@@ -1,4 +1,4 @@
-
+// 파일: src/App.jsx
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 
 import LandingPage from "./pages/LandingPage";
@@ -15,7 +15,7 @@ import ReservationConfirm from "./pages/ReservationConfirm";
 import OAuthCallback from "./pages/OAuthCallback";
 import { AuthProvider } from "./auth/AuthContext";
 
-//의사 뷰: 진료 예약 리스트 페이지
+// ⬇️ 의사 뷰: 진료 예약 리스트 페이지
 import DoctorReservationList from "./pages/DoctorReservationList";
 
 export default function App() {
@@ -42,12 +42,13 @@ export default function App() {
 
           {/* WebRTC 진료실 */}
           <Route path="/tele/session/:reservationId" element={<WebRtcSession />} />
-          
-          {/*의사용 단축 URL*/}
+
+          {/* 의사용 단축 URL: /doctor → 부모 세션 URL로 리다이렉트, roleHint 전달 */}
           <Route
             path="/tele/session/:reservationId/doctor"
             element={<Navigate to=".." replace state={{ roleHint: "doctor" }} />}
           />
+
           {/* 의사 뷰 */}
           <Route path="/doctor/reservations" element={<DoctorReservationList />} />
 

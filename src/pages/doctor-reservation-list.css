@@ -1,0 +1,200 @@
+.doclist__main {
+  flex: 1 1 auto;
+  padding: 28px 64px;
+  background: #f8f9fb;
+}
+
+.doclist__container {
+  max-width: 1200px;        
+  margin: 0 auto;           
+  padding: 0 24px;          
+  box-sizing: border-box;
+}
+
+.doclist__card {
+  background: #fff;
+  border-radius: 18px;
+  box-shadow: 0 10px 34px rgba(0,0,0,0.08);
+  overflow: hidden;
+  max-width: 1040px;        
+  margin: 0 auto;
+}
+
+
+.doclist__header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  padding: 16px 20px 10px;  
+  border-bottom: 1px solid #eaedf3;
+}
+.doclist__header h2 {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 800;
+}
+.doclist__meta {
+  color: #9aa1a9;
+  font-size: 14px;
+}
+
+.doclist__table {
+  width: 100%;
+  padding: 6px 12px 14px;
+}
+.doclist__thead, .doclist__tbody {
+  width: 100%;
+}
+
+.doclist__row {
+  display: grid;
+  grid-template-columns: 260px 110px 1fr 130px 160px; /* 열 폭 조정 */
+  gap: 10px;
+  align-items: center;
+  padding: 10px 12px;
+  border-radius: 10px;
+}
+.doclist__row--head {
+  color: #6b7280;
+  font-weight: 700;
+  font-size: 14px;
+  padding: 14px;
+}
+.doclist__tbody .doclist__row {
+  font-size: 15px;
+  color: #111827;
+}
+.doclist__tbody .doclist__row:hover {
+  background: #fafbff;
+}
+
+.col--time { white-space: nowrap; }
+.col--name { font-weight: 700; }
+.col--symptom { color: #374151; }
+.col--paper { text-align: left; }
+.col--actions { text-align: right; }
+
+.doclist__link {
+  color: #546cff;
+  font-weight: 700;
+  text-decoration: none;
+}
+.doclist__link:hover { text-decoration: underline; }
+
+.actions {
+  display: inline-flex;
+  gap: 16px;                /* 버튼 간격 늘림 */
+  align-items: center;
+}
+.btn {
+  border: 0;
+  height: 36px;             /* 높이 키움 */
+  padding: 0 18px;          /* 좌우 여백 넓힘 */
+  border-radius: 8px;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.06);
+}
+.btn--ghost {
+  background: #e9ecf3;
+  color: #7b8293;
+}
+.btn--ghost:hover { filter: brightness(0.97); }
+.btn--primary {
+  background: #3b82f6;
+  color: #fff;
+}
+.btn--primary:hover { filter: brightness(0.98); }
+
+/* 상태 */
+.state {
+  font-weight: 800;
+}
+.state--rejected {
+  color: #8b93a2;
+}
+.state--accepted {
+  color: #3b82f6;
+}
+
+/* 반응형 */
+@media (max-width: 1024px) {
+  .doclist__row {
+    grid-template-columns: 220px 100px 1fr 120px 160px;
+  }
+}
+@media (max-width: 840px) {
+  .doclist__row {
+    grid-template-columns: 1fr;
+    gap: 8px;
+    align-items: start;
+  }
+  .col--actions { text-align: left; }
+}
+
+.doclist__table { padding-right: 28px; }          
+
+.col--actions { padding-right: 12px; }            
+.doclist__row--head .col--actions { padding-right: 12px; }  
+
+/* ===== 모달 (수락/거절 확인) ===== */
+.dl-modal__backdrop{
+  position: fixed;
+  inset: 0;
+  background: rgba(17, 24, 39, 0.45);  /* 어두운 오버레이 */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 60;
+  backdrop-filter: blur(2px);          /* 배경 살짝 블러 */
+}
+
+.dl-modal{
+  width: 380px;
+  max-width: calc(100% - 40px);
+  background: #fff;
+  border-radius: 14px;
+  box-shadow: 0 20px 60px rgba(0,0,0,.18);
+  padding: 18px 18px 16px;
+}
+
+.dl-modal__title{
+  margin: 8px 0 14px;
+  text-align: center;
+  font-size: 16px;
+  font-weight: 800;
+  color: #111827;
+}
+
+.dl-modal__actions{
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  padding-top: 4px;
+}
+
+/* 모달 버튼(디자인 참고) */
+.dl-btn{
+  height: 40px;
+  padding: 0 22px;
+  font-weight: 800;
+  border-radius: 999px;          /* pill 형태 */
+  border: 0;
+  cursor: pointer;
+}
+
+.dl-btn--ghost{
+  background: #fff;
+  color: #111827;
+  box-shadow: 0 0 0 1px #e5e7eb inset, 0 4px 16px rgba(0,0,0,.06);
+}
+.dl-btn--ghost:hover{ filter: brightness(0.98); }
+
+.dl-btn--primary{
+  background: #3b82f6; /* 파란 버튼 */
+  color: #fff;
+  box-shadow: 0 8px 22px rgba(59,130,246,.35);
+}
+.dl-btn--primary:hover{ filter: brightness(0.98); }
+
+

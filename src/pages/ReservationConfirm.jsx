@@ -1,5 +1,4 @@
-// src/pages/ReservationConfirm.jsx
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
 import { api } from "../auth/axios";
@@ -10,13 +9,15 @@ export default function ReservationConfirm() {
   const { reservationId } = useParams();
   const nav = useNavigate();
   const { state } = useLocation();
-  const selectedOptions = state?.interpretationOption || []; // ["VOICE_TO_TEXT", "SIGN_TO_TEXT"]
+  const selectedOptions = state?.interpretationOption || [];
 
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
   const [data, setData] = useState(null);
 
-  // state / sessionStorage 메모 폴백
+  // 이전 status 기억 → CONFIRMED 전환 감지용
+  const prevStatusRef = useRef(null);
+
   const memoFromState = (state?.memo || "").trim();
   let memoFromSession = "";
   try {
@@ -32,7 +33,7 @@ export default function ReservationConfirm() {
     COMPLETED: "진료 완료",
   };
 
-  const mockSafe = useMemo(() => ({
+  const safe = useMemo(() => ({
     dept: data?.speciality || "내과",
     hospital: data?.hospitalName || "이화여대 내과 병원",
     doctor: data?.doctorName || "의사",
@@ -82,14 +83,13 @@ export default function ReservationConfirm() {
     }
   }
 
-  // 최초 조회 + 의사 수락 대기 중이면 5초 간격으로 폴링
   useEffect(() => {
     let timer;
     const load = async () => {
       await fetchDetail();
-      // REQUESTED 상태면 폴링 시작/유지
+      // 요청 상태가 바뀌는 동안 폴링 유지
       timer = setInterval(async () => {
-        if (document.hidden) return; // 탭 비활성화 시 과도한 폴링 방지
+        if (document.hidden) return;
         await fetchDetail();
       }, 5000);
     };
@@ -98,8 +98,20 @@ export default function ReservationConfirm() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reservationId]);
 
-  const statusLabel = statusLabelMap[mockSafe.status] || mockSafe.status;
-  const canEnter = mockSafe.status === "CONFIRMED" || mockSafe.status === "REQUESTED";
+  // ✅ 상태 전환 감지: REQUESTED → CONFIRMED 되면 자동 이동(원하면 주석 해제)
+  useEffect(() => {
+    const prev = prevStatusRef.current;
+    const cur = safe.status;
+    if (prev !== cur && cur === "CONFIRMED") {
+      // 자동 이동을 원하면 아래 주석 해제
+      // nav(`/tele/session/${reservationId}`, { state: { interpretationOption: selectedOptions } });
+    }
+    prevStatusRef.current = cur;
+  }, [safe.status, nav, reservationId, selectedOptions]);
+
+  const statusLabel = statusLabelMap[safe.status] || safe.status;
+  // ✅ “진료 입장” 버튼은 CONFIRMED일 때만 활성화
+  const canEnter = safe.status === "CONFIRMED";
 
   return (
     <div className="telemed resv">
@@ -115,13 +127,13 @@ export default function ReservationConfirm() {
 
           {!loading && !err && (
             <>
-              <div className="resv__dept">{mockSafe.dept}</div>
-              <div className="resv__hname">{mockSafe.hospital}</div>
+              <div className="resv__dept">{safe.dept}</div>
+              <div className="resv__hname">{safe.hospital}</div>
               <div className="resv__dname">
-                {mockSafe.doctor} <span style={{ color: "#888" }}>· {statusLabel}</span>
+                {safe.doctor} <span style={{ color: "#888" }}>· {statusLabel}</span>
               </div>
               <div className="resv__when">
-                {mockSafe.date} | {mockSafe.time}
+                {safe.date} | {safe.time}
               </div>
 
               <button
@@ -135,19 +147,19 @@ export default function ReservationConfirm() {
                 title={
                   canEnter
                     ? ""
-                    : "의사가 예약을 수락하면 ‘진료 받으러 가기’가 활성화됩니다."
+                    : "의사가 예약을 수락하면 ‘진료 입장’이 활성화됩니다."
                 }
               >
-                진료 받으러 가기
+                {canEnter ? "진료 입장" : "예약 확인 중…"}
               </button>
 
               <div className="resv__cancelwrap">
                 <button
                   className="resv__cancel"
                   onClick={onCancel}
-                  disabled={mockSafe.status !== "REQUESTED"}
+                  disabled={safe.status !== "REQUESTED"}
                   title={
-                    mockSafe.status !== "REQUESTED"
+                    safe.status !== "REQUESTED"
                       ? "REQUESTED 상태에서만 취소할 수 있어요."
                       : ""
                   }
@@ -169,7 +181,7 @@ export default function ReservationConfirm() {
         <section className="resv__card">
           <header className="resv__cardhead">
             <h2 className="resv__title">진료 신청서</h2>
-            <span className="resv__date">{mockSafe.date}</span>
+            <span className="resv__date">{safe.date}</span>
           </header>
 
           <div className="resv__form">
@@ -178,27 +190,27 @@ export default function ReservationConfirm() {
               <>
                 <div className="form__row">
                   <label className="form__label">이름</label>
-                  <div className="form__value">{mockSafe.name}</div>
+                  <div className="form__value">{safe.name}</div>
                 </div>
 
                 <div className="form__row">
                   <label className="form__label">주민등록 번호</label>
-                  <div className="form__value">{mockSafe.rrn}</div>
+                  <div className="form__value">{safe.rrn}</div>
                 </div>
 
                 <div className="form__row">
                   <label className="form__label">증상</label>
                   <div className="form__value">
-                    {mockSafe.symptom}
-                    {mockSafe.symptomDuration !== null
-                      ? ` · ${mockSafe.symptomDuration}일`
+                    {safe.symptom}
+                    {safe.symptomDuration !== null
+                      ? ` · ${safe.symptomDuration}일`
                       : " · 기간 미응답"}
                   </div>
                 </div>
 
                 <div className="form__row">
                   <label className="form__label">기타 증상(메모)</label>
-                  <div className="form__value">{mockSafe.description}</div>
+                  <div className="form__value">{safe.description}</div>
                 </div>
 
                 <div className="form__row">

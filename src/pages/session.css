@@ -315,3 +315,17 @@
 }
 .modal__card .btn-primary:hover { background: #2c46d9; }
 
+.telemed {
+  display: flex;
+  min-height: 100vh;
+  background: #fafafa;
+}
+
+.resv__wrap {
+  flex: 1;              /* 사이드바 옆으로 메인 영역 차지 */
+  display: flex;
+  padding: 20px;
+  gap: 20px;
+}
+
+

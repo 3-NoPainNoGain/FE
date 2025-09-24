@@ -1,11 +1,164 @@
-.sb{background:#fff;border-right:1px solid rgba(0,0,0,.06);display:flex;flex-direction:column;padding:12px 14px;min-height:100vh;width:220px}
-.sb__header{display:flex;align-items:center;gap:10px;padding:4px 6px 10px}
-.sb__logo{width:28px;height:28px}
-.sb__brand{font-weight:800;color:#2C3E7F;font-size:20px}
-.sb__nav{display:flex;flex-direction:column;gap:10px;padding:10px 4px}
-.sb__item{color:#333;text-decoration:none;padding:8px 6px;border-radius:8px;font-weight:600}
-.sb__item:hover{background:rgba(0,0,0,.04)}
-.sb__item.active{color:#111;box-shadow:inset 0 -2px 0 #111}
-.sb__footer{margin-top:auto;color:#9aa1a8;font-size:13px;display:flex;align-items:center;gap:6px}
-.dot{width:12px;height:12px;border-radius:50%;background:#bfc4ca;display:inline-block}
-@media(max-width:900px){.sb{width:68px}.sb__brand{display:none}.sb__item{font-size:14px;padding:8px}}
+.sb {
+  background: #fff;
+  border-right: 1px solid rgba(0, 0, 0, 0.06);
+  display: flex;
+  flex-direction: column;
+  padding: 12px 14px;
+  min-height: 100vh;
+  width: 220px;
+}
+
+/* 상단 로고 영역 */
+.sb__header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 6px 10px;
+  cursor: pointer;
+}
+.sb__logo {
+  width: 28px;
+  height: 28px;
+}
+.sb__brand {
+  font-weight: 800;
+  color: #2C3E7F;
+  font-size: 20px;
+}
+
+/* 구분선 */
+.sb__divider {
+  border: none;
+  border-top: 1px solid #e5e5e5;
+  margin: 8px 0 16px;
+}
+
+/* 네비게이션 */
+.sb__nav {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* NavLink 기본 스타일 제거 */
+.sb__nav a,
+.sb__submenu a {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* 1차 메뉴 */
+.sb__item {
+  color: #000;
+  font-weight: 700;
+  font-size: 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 0;
+}
+.sb__item.active {
+  color: #000;
+}
+.sb__dropdown {
+  user-select: none;
+}
+.sb__arrow {
+  font-size: 12px;
+}
+
+/* 2차 메뉴 */
+.sb__submenu {
+  display: flex;
+  flex-direction: column; /* 위아래 배치 */
+  margin-left: 16px;
+  margin-top: 6px;
+  gap: 8px; /* 항목 간 간격 */
+}
+.sb__subitem {
+  color: #000;            /* 비대면 진료와 같은 톤 */
+  font-weight: 600;
+  font-size: 15px;
+  text-decoration: none;  /* 언더라인 제거 */
+  padding: 4px 0;
+  cursor: pointer;
+}
+.sb__subitem:hover {
+  color: #2C3E7F;         /* hover 시 포인트 컬러 */
+}
+.sb__subitem.active {
+  color: #111;
+}
+
+/* 비활성 메뉴 */
+.sb__disabled {
+  cursor: default;
+  color: #b3b3b3;
+}
+
+/* 푸터 */
+.sb__footer {
+  margin-top: auto;
+  color: #9aa1a8;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #bfc4ca;
+  display: inline-block;
+}
+
+/* 반응형 */
+@media (max-width: 900px) {
+  .sb {
+    width: 68px;
+  }
+  .sb__brand {
+    display: none;
+  }
+  .sb__item {
+    font-size: 14px;
+    padding: 8px;
+  }
+}
+
+/* 1차 메뉴 (대면 진료, 비대면 진료) */
+.sb__item {
+  color: #000;
+  font-weight: 700;
+  font-size: 18px;   /* ✅ 글자 크기 키움 */
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 0;
+}
+
+/* 화살표 아이콘 */
+.sb__arrow {
+  font-size: 12px;
+  width: 16px;        /* ✅ 고정 폭 확보 */
+  display: inline-block;
+  text-align: center; /* 가운데 정렬 */
+}
+/* NavLink (a 태그) 포커스/클릭 시 밑줄 제거 */
+.sb__item:focus,
+.sb__item:active,
+.sb__subitem:focus,
+.sb__subitem:active {
+  outline: none;         /* ✅ 브라우저 기본 포커스 라인 제거 */
+  text-decoration: none; /* ✅ 밑줄 제거 */
+  box-shadow: none;      /* ✅ 일부 브라우저의 내부 그림자 제거 */
+}
+
+/* Sidebar.css */
+.sb__item--face {
+  padding-left: 50px;  /* 숫자는 취향대로 (화살표 너비만큼) */
+}
+

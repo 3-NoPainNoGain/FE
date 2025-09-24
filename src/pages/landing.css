@@ -1,208 +1,27 @@
-/* src/pages/landing.css */
-
-/* 전체 컨테이너 배경/타이포 기본값 */
-.landing {
-  --brand-blue: #3D6BFF;           /* 헤더 로고/링크 기본 파랑 */
-  --text-strong: #111;             /* 메인 타이틀 */
-  --text-muted: #9CA3AF;           /* 서브타이틀 회색 */
-  --card-bg: #fff;                 /* 카드 배경 */
-  --card-radius: 16px;             /* 카드 모서리 */
-  --card-shadow: 0 10px 24px rgba(0,0,0,0.08);
-  --container-width: 1100px;       /* 본문 최대 너비 */
-  --page-padding: 32px;            /* 좌우 패딩 */
-  font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
-  background: #f7f7f8;             /* 페이지 전체의 아주 연한 회색 배경 */
-  color: var(--text-strong);
-}
-
-/* 상단 헤더 */
-.landing__header {
-  height: 72px;
+/* ========== 레이아웃 컨테이너 (사이드바 + 메인) ========== */
+.layout {
   display: flex;
-  align-items: center;
-  padding: 0 var(--page-padding);
-  background: #fff;                /* 헤더는 화이트 */
-  border-bottom: 1px solid rgba(0,0,0,0.04);
-}
-
-/* 브랜드(로고+텍스트) */
-.landing__brand {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-}
-.brand__logo {
-  width: 28px;
-  height: 28px;
-}
-.brand__name {
-  font-size: 20px;
-  font-weight: 700;
-  color: var(--brand-blue);
-}
-
-/* 본문 컨테이너 */
-.landing__main {
-  max-width: var(--container-width);
-  margin: 0 auto;
-  padding: 56px var(--page-padding) 80px;
-}
-
-/* 히어로 영역: 타이틀/부제 */
-.hero__title {
-  font-size: 44px;
-  line-height: 1.2;
-  letter-spacing: -0.02em;
-  font-weight: 800;
-  margin: 16px 0 8px;
-}
-.hero__subtitle {
-  font-size: 20px;
-  color: var(--text-muted);
-  margin: 0 0 40px;
-}
-
-/* 기능 카드 그리드: 3열 */
-.features {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 24px;
-}
-
-/* 카드 기본 스타일 */
-.card {
-  background: var(--card-bg);
-  border-radius: var(--card-radius);
-  box-shadow: var(--card-shadow);
-  padding: 20px 20px 24px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  transition: transform .15s ease, box-shadow .15s ease;
-}
-.card:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 14px 32px rgba(0,0,0,0.12);
-}
-
-/* 카드 썸네일 */
-.card__thumb {
-  width: 180px;
-  height: 120px;
-  display: grid;
-  place-items: center;
-  margin: 10px 0 14px;
-}
-.card__thumb svg {
-  width: 100%;
-  height: 100%;
-}
-
-/* 카드 타이틀/설명 */
-.card__title {
-  font-size: 18px;
-  font-weight: 700;
-  margin: 4px 0 8px;
-}
-.card__desc {
-  font-size: 13px;
-  color: #8A8A8A;
-  text-align: center;
-  margin: 0;
-}
-
-/* 우하단 CTA 링크 */
-.landing__cta {
-  position: fixed;
-  right: 28px;
-  bottom: 28px;
-}
-.cta__link {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  font-weight: 600;
-  color: var(--brand-blue);
-  text-decoration: none;
-  background: #fff;
-  padding: 10px 14px;
-  border-radius: 999px;
-  box-shadow: 0 8px 18px rgba(0,0,0,0.08);
-}
-.cta__link:hover .cta__arrow { transform: translateX(2px); }
-.cta__arrow { transition: transform .15s ease; }
-
-/* 반응형: 태블릿 이하 2열, 모바일 1열 */
-@media (max-width: 960px) {
-  .features { grid-template-columns: repeat(2, 1fr); }
-  .hero__title { font-size: 36px; }
-}
-@media (max-width: 640px) {
-  .features { grid-template-columns: 1fr; }
-  .landing__main { padding: 40px 20px 72px; }
-  .hero__title { font-size: 28px; }
-  .hero__subtitle { font-size: 16px; }
-}
-/* 카드 썸네일 */
-.card__thumb {
-  width: 150px;       
-  height: 100px;      
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  margin: 10px 0 14px;
-}
-
-.card__thumb img {
-  max-width: 65%;     
-  height: auto;
-  object-fit: contain;
-}
-
-.landing-container {
-  width: 1920px;
-  height: 1080px;
-  background: var(--Handoc-Gray-100, #F8F8F8);
-  margin: 0 auto; /* 가운데 정렬 (옵션) */
-  display: flex;  /* 내부 콘텐츠 정렬용 */
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-}
-
-/* 로그인 버튼: 우측 상단 파란 pill 형태 */
-.btn-login {
-  position: absolute;      /* 헤더 오른쪽 위 고정 */
-  top: 16px;               /* 헤더 위쪽 여백 */
-  right: 24px;             /* 헤더 오른쪽 여백 */
-  height: 36px;
-  padding: 0 16px;
-  border: none;
-  border-radius: 12px;     /* pill 모양 */
-  background: #2F57EB;     /* 파란색 */
-  color: #fff;
-  font-weight: 600;
-  font-size: 14px;
-  cursor: pointer;
-}
-
-.btn-login:hover {
-  background: #2349d8;     /* hover 시 더 진한 파랑 */
-}
-
-/* ===== 레이아웃 ===== */
-.landing {
   min-height: 100vh;
+  background: #fafafa;
+}
+
+.landing {
+  flex: 1;
   background: #fbfbfe;
   color: #111827;
+  display: flex;
+  flex-direction: column;
 }
 
+/* ========== 상단 헤더 ========== */
 .landing__header {
   height: 64px;
   padding: 0 20px;
   display: flex;
   align-items: center;
   justify-content: space-between;
+  background: #fff;
+  border-bottom: 1px solid rgba(0,0,0,0.04);
 }
 
 .landing__brand {
@@ -210,126 +29,33 @@
   align-items: center;
   gap: 10px;
 }
-
 .brand__logo {
   width: 28px;
   height: 28px;
 }
-
 .brand__name {
   font-size: 20px;
   font-weight: 700;
   color: #4f46e5;
 }
 
-/* 공통 pill 버튼 (로그인/로그아웃 공용) */
-.btn-pill {
-  height: 40px;
-  padding: 0 18px;
+/* 로그인 버튼 (비로그인 상태) */
+.btn-login {
+  height: 36px;
+  padding: 0 16px;
   border: none;
-  border-radius: 9999px;
-  background: #4f46e5;
+  border-radius: 12px;
+  background: #2F57EB;
   color: #fff;
   font-weight: 600;
-  letter-spacing: -0.2px;
-  cursor: pointer;
-  box-shadow: 0 8px 18px rgba(79, 70, 229, 0.25);
-  transition: transform .05s ease, box-shadow .15s ease, background .15s ease;
-}
-.btn-pill:hover { background: #4338ca; }
-.btn-pill:active { transform: translateY(1px); box-shadow: 0 5px 14px rgba(79, 70, 229, 0.22); }
-
-/* 로그인 상태 표시 */
-.login-state {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.login-state__hello {
   font-size: 14px;
-  color: #6b7280; /* 살짝 옅은 회색 */
+  cursor: pointer;
+}
+.btn-login:hover {
+  background: #2349d8;
 }
 
-/* ===== 메인 ===== */
-.landing__main {
-  max-width: 1100px;
-  margin: 0 auto;
-  padding: 32px 20px 48px;
-}
-
-.hero__title {
-  font-size: 52px;
-  line-height: 1.15;
-  letter-spacing: -0.6px;
-  font-weight: 800;
-  margin: 36px 0 10px;
-}
-
-.hero__subtitle {
-  color: #6b7280;
-  margin-bottom: 22px;
-}
-
-.features {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 28px;
-  margin-top: 28px;
-}
-
-.card {
-  background: #fff;
-  border-radius: 18px;
-  padding: 22px;
-  box-shadow: 0 12px 30px rgba(17, 24, 39, 0.06);
-}
-
-.card__thumb {
-  display: flex;
-  justify-content: center;
-  margin-bottom: 10px;
-}
-.card__thumb img { width: 120px; height: 120px; }
-
-.card__title {
-  margin: 6px 0 6px;
-  font-size: 22px;
-  font-weight: 700;
-  text-align: center;
-}
-.card__desc {
-  color: #6b7280;
-  font-size: 15px;
-  text-align: center;
-}
-
-/* ===== CTA ===== */
-.landing__cta {
-  max-width: 1100px;
-  margin: 0 auto 36px;
-  padding: 0 20px;
-  display: flex;
-  justify-content: flex-end;
-}
-
-.cta__link {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  height: 52px;
-  padding: 0 22px;
-  background: #6366f1;
-  color: #fff;
-  border-radius: 9999px;
-  font-weight: 700;
-  box-shadow: 0 12px 28px rgba(99, 102, 241, .28);
-  transition: transform .05s ease, box-shadow .15s ease, background .15s ease;
-}
-.cta__link:hover { background: #5458ea; }
-.cta__link:active { transform: translateY(1px); box-shadow: 0 8px 20px rgba(99, 102, 241, .24); }
-.cta__arrow { opacity: .9; }
-/* 헤더 우측 사용자 박스(UI) */
+/* 로그인 상태 박스 */
 .userbox { position: relative; }
 .userbox__btn {
   display: inline-flex; align-items: center; gap: 8px;
@@ -352,3 +78,102 @@
 .userbox__item.-danger { color: #e02424; }
 .userbox__item.-danger:hover { background: #fff1f1; }
 
+/* ========== 메인 컨텐츠 ========== */
+.landing__main {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 32px 20px 48px;
+}
+
+.hero__title {
+  font-size: 52px;
+  line-height: 1.15;
+  letter-spacing: -0.6px;
+  font-weight: 800;
+  margin: 36px 0 10px;
+}
+.hero__subtitle {
+  font-size: 20px;
+  color: #6b7280;
+  margin-bottom: 22px;
+}
+
+/* 기능 카드 그리드 */
+.features {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 28px;
+  margin-top: 28px;
+}
+.card {
+  background: #fff;
+  border-radius: 18px;
+  padding: 22px;
+  box-shadow: 0 12px 30px rgba(17, 24, 39, 0.06);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  transition: transform .15s ease, box-shadow .15s ease;
+}
+.card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 14px 32px rgba(0,0,0,0.12);
+}
+.card__thumb {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 10px;
+}
+.card__thumb img {
+  width: 120px;
+  height: 120px;
+  object-fit: contain;
+}
+.card__title {
+  margin: 6px 0 6px;
+  font-size: 22px;
+  font-weight: 700;
+  text-align: center;
+}
+.card__desc {
+  color: #6b7280;
+  font-size: 15px;
+  text-align: center;
+}
+
+/* ========== CTA ========== */
+.landing__cta {
+  max-width: 1100px;
+  margin: 0 auto 36px;
+  padding: 0 20px;
+  display: flex;
+  justify-content: flex-end;
+}
+.cta__link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 52px;
+  padding: 0 22px;
+  background: #6366f1;
+  color: #fff;
+  border-radius: 9999px;
+  font-weight: 700;
+  box-shadow: 0 12px 28px rgba(99, 102, 241, .28);
+  transition: transform .05s ease, box-shadow .15s ease, background .15s ease;
+}
+.cta__link:hover { background: #5458ea; }
+.cta__link:active { transform: translateY(1px); box-shadow: 0 8px 20px rgba(99, 102, 241, .24); }
+.cta__arrow { opacity: .9; }
+
+/* ========== 반응형 ========== */
+@media (max-width: 960px) {
+  .features { grid-template-columns: repeat(2, 1fr); }
+  .hero__title { font-size: 36px; }
+}
+@media (max-width: 640px) {
+  .features { grid-template-columns: 1fr; }
+  .landing__main { padding: 40px 20px 72px; }
+  .hero__title { font-size: 28px; }
+  .hero__subtitle { font-size: 16px; }
+}

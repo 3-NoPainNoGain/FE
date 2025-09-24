@@ -10,7 +10,7 @@ import { sendSignTextToDB, sendSpeechToDB } from "../services/telemedicine";
 import "./tele.css";
 import HandPoseTracker from "../components/HandPoseTracker";
 
-/* ------------ Chat Bubble (대면 진료 스타일) ------------ */
+/* ------------ Chat Bubble ------------ */
 function ChatBubble({ role, text }) {
   if (role === "typing") {
     return (
@@ -25,7 +25,7 @@ function ChatBubble({ role, text }) {
   return <div className={klass}>{text}</div>;
 }
 
-/* ------------ Peer helpers (기존 그대로) ------------ */
+/* ------------ Peer helpers ------------ */
 function createPeer(localStream, iceServers, { onTrack, onIce, onDataChannel }) {
   const pc = new RTCPeerConnection({
     iceServers: iceServers?.length
@@ -67,10 +67,12 @@ export default function WebRtcSession() {
     null;
 
   const selectedOptions = state?.interpretationOption || [];
-  const enableSign = selectedOptions.includes("SIGN_TO_TEXT");
-  const enableVoice = selectedOptions.includes("VOICE_TO_TEXT");
 
-  // 내 세션 키
+ // 환자는 무조건 수어 인식 UI 보이게
+ const enableSign = roleHint === "patient" ? true : selectedOptions.includes("SIGN_TO_TEXT");
+
+ // 의사는 무조건 음성 인식 UI 보이게
+ const enableVoice = roleHint === "doctor" ? true : selectedOptions.includes("VOICE_TO_TEXT");
   const myKeyRef = useRef(null);
   if (!myKeyRef.current) {
     const saved = sessionStorage.getItem("tele_key");
@@ -95,7 +97,7 @@ export default function WebRtcSession() {
   const signalingRef = useRef(null);
   const dataChannelRef = useRef(null);
 
-  // 채팅 리스트(누적)
+  // 채팅 리스트
   const [messages, setMessages] = useState([]);
   const chatRef = useRef(null);
 
@@ -121,11 +123,11 @@ export default function WebRtcSession() {
     if (text) setRecognizedText(text);
   };
 
-  // 환자 자막 전송 (수어→텍스트)
+  // 환자 자막 전송
   const handleSendPatientCaption = async () => {
     const text = recognizedText.trim();
     if (!text) return;
-    sendCaption("patient", text); // DC 브로드캐스트
+    sendCaption("patient", text);
     try {
       await sendSignTextToDB(roomId || reservationId, text);
       console.log(`[API] 수어 텍스트 저장 성공: "${text}"`);
@@ -162,9 +164,7 @@ export default function WebRtcSession() {
     const v = remoteVideoRef.current;
     if (!v) return;
     if (v.srcObject !== stream) v.srcObject = stream;
-    v.play?.().catch((e) => {
-      console.debug("[attachRemoteStream] play() error:", e);
-    });
+    v.play?.().catch((e) => console.debug("[attachRemoteStream] play() error:", e));
   }
 
   function bindDataChannel(ch) {
@@ -182,17 +182,10 @@ export default function WebRtcSession() {
       }
       if (!payload || typeof payload !== "object") return;
       if (payload.type === "caption" && payload.text) {
-        if (payload.source === "doctor") {
-          setMessages((prev) => [
-            ...prev,
-            { id: crypto.randomUUID(), role: "doctor", text: payload.text },
-          ]);
-        } else if (payload.source === "patient") {
-          setMessages((prev) => [
-            ...prev,
-            { id: crypto.randomUUID(), role: "patient", text: payload.text },
-          ]);
-        }
+        setMessages((prev) => [
+          ...prev,
+          { id: crypto.randomUUID(), role: payload.source, text: payload.text },
+        ]);
       }
     };
   }
@@ -200,11 +193,7 @@ export default function WebRtcSession() {
   const sendCaption = useCallback((source, text) => {
     const t = (text || "").trim();
     if (!t) return;
-
-    if (source === "doctor")
-      setMessages((prev) => [...prev, { id: crypto.randomUUID(), role: "doctor", text: t }]);
-    if (source === "patient")
-      setMessages((prev) => [...prev, { id: crypto.randomUUID(), role: "patient", text: t }]);
+    setMessages((prev) => [...prev, { id: crypto.randomUUID(), role: source, text: t }]);
 
     const ch = dataChannelRef.current;
     const payload = { type: "caption", source, text: t, t: Date.now() };
@@ -264,7 +253,6 @@ export default function WebRtcSession() {
         });
         setSttOn(true);
 
-        // 의사 음성 녹음 → 서버 저장
         const stream = localStreamRef.current;
         if (!stream || stream.getAudioTracks().length === 0) {
           console.warn("녹음을 위한 오디오 트랙이 없습니다.");
@@ -327,7 +315,6 @@ export default function WebRtcSession() {
       roomId: res.roomId,
       myKey,
       onReady: () => {
-        // 환자 쪽은 Offer 시작
         if (res.role === "ROLE_PATIENT") setTimeout(() => startCall(), 150);
       },
       onOffer: async ({ body }) => {
@@ -359,20 +346,19 @@ export default function WebRtcSession() {
         const pc = peersRef.current.get("peer");
         if (!pc) return;
         if (body == null) {
-          pc.addIceCandidate(null).catch((e) => {
-            console.debug("[ICE] add null candidate fail:", e);
-          });
+          pc.addIceCandidate(null).catch((e) =>
+            console.debug("[ICE] add null candidate fail:", e)
+          );
           return;
         }
-        pc.addIceCandidate(new RTCIceCandidate(body)).catch((e) => {
-          console.debug("[ICE] add candidate fail:", e);
-        });
+        pc.addIceCandidate(new RTCIceCandidate(body)).catch((e) =>
+          console.debug("[ICE] add candidate fail:", e)
+        );
       },
       onLeave: () => endCall(),
     });
     signalingRef.current = api;
 
-    // 입력 소스 초기화 (의사: STT 준비)
     setupRealtimeInputs(res.role);
 
     if (res.role === "ROLE_DOCTOR" && enableVoice) {
@@ -472,7 +458,7 @@ export default function WebRtcSession() {
     console.log("[RTC] call ended and resources cleaned");
   }, [sttOn]);
 
-  // 예약번호 파라미터 주입
+  // 예약번호 파라미터
   useEffect(() => {
     if (ridParam) setReservationId(String(ridParam));
   }, [ridParam]);
@@ -493,7 +479,6 @@ export default function WebRtcSession() {
       <main className="visit__main">
         <h2>비대면(WebRTC)</h2>
 
-        {/* 상단 툴바 */}
         <div className="tele__toolbar">
           <div className="tele__room">
             <label className="tele__label">예약번호</label>
@@ -515,7 +500,6 @@ export default function WebRtcSession() {
           </div>
         </div>
 
-        {/* ===== 새 레이아웃: 좌측 채팅 / 우측 PIP 영상 ===== */}
         <div className="tele__grid">
           {/* 좌측: 채팅 */}
           <section className="tele__chat">
@@ -525,7 +509,6 @@ export default function WebRtcSession() {
               ))}
             </div>
 
-            {/* 환자 입력(수어→텍스트 전송) : SIGN_TO_TEXT일 때만 */}
             {role === "ROLE_PATIENT" && (
               <div className="tele__sendbox">
                 {enableSign && (
@@ -558,9 +541,8 @@ export default function WebRtcSession() {
             )}
           </section>
 
-          {/* 우측: 내 화면(크게) + 상대 화면(PIP) */}
+          {/* 우측: 내 화면 + 상대 화면 */}
           <section className="tele__pane">
-            {/* 내 화면: 크게 */}
             <div className="tele__myvideo">
               <video
                 ref={localVideoRef}
@@ -571,7 +553,6 @@ export default function WebRtcSession() {
               />
             </div>
 
-            {/* 상대 화면: 작은 PIP (좌상단) */}
             <div className="tele__pip">
               <div className="tele__pip__label">상대 화면</div>
               <video
@@ -582,17 +563,16 @@ export default function WebRtcSession() {
               />
             </div>
 
-            {/* 의사 STT: VOICE_TO_TEXT일 때만 버튼 노출 */}
-            <div className="tele__text__toolbar">
-              {role === "ROLE_DOCTOR" && enableVoice && (
+            {role === "ROLE_DOCTOR" && enableVoice && (
+              <div className="tele__text__toolbar">
                 <button
                   className={`btn ${sttOn ? "btn--primary" : "btn--ghost"}`}
                   onClick={toggleDoctorSTT}
                 >
                   {sttOn ? "음성인식 중지" : "음성인식 시작"}
                 </button>
-              )}
-            </div>
+              </div>
+            )}
           </section>
         </div>
       </main>

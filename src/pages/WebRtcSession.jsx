@@ -6,7 +6,11 @@ import { connectSignalingWS } from "../webrtc/signaling";
 import { joinReservation } from "../services/reservation";
 import { ENABLE_GUEST_MODE } from "../config";
 import { createBrowserSTT } from "../services/stt";
-import { sendSignTextToDB, sendSpeechToDB } from "../services/telemedicine";
+import {
+  sendSignTextToDB,
+  sendSpeechToDB,
+  endSession,
+} from "../services/telemedicine";
 import "./tele.css";
 import HandPoseTracker from "../components/HandPoseTracker";
 
@@ -21,7 +25,8 @@ function ChatBubble({ role, text }) {
       </div>
     );
   }
-  const klass = role === "patient" ? "bubble bubble--patient" : "bubble bubble--doctor";
+  const klass =
+    role === "patient" ? "bubble bubble--patient" : "bubble bubble--doctor";
   return <div className={klass}>{text}</div>;
 }
 
@@ -63,21 +68,26 @@ export default function WebRtcSession() {
   const roleHintParam = qp.get("role");
   const roleHint =
     (state && state.roleHint) ||
-    (roleHintParam && (roleHintParam.toLowerCase() === "doctor" ? "doctor" : "patient")) ||
+    (roleHintParam &&
+      (roleHintParam.toLowerCase() === "doctor" ? "doctor" : "patient")) ||
     null;
 
   const selectedOptions = state?.interpretationOption || [];
 
- // 환자는 무조건 수어 인식 UI 보이게
- const enableSign = roleHint === "patient" ? true : selectedOptions.includes("SIGN_TO_TEXT");
+  // 환자는 무조건 수어 인식 UI 보이게
+  const enableSign =
+    roleHint === "patient" ? true : selectedOptions.includes("SIGN_TO_TEXT");
 
- // 의사는 무조건 음성 인식 UI 보이게
- const enableVoice = roleHint === "doctor" ? true : selectedOptions.includes("VOICE_TO_TEXT");
+  // 의사는 무조건 음성 인식 UI 보이게
+  const enableVoice =
+    roleHint === "doctor" ? true : selectedOptions.includes("VOICE_TO_TEXT");
+
   const myKeyRef = useRef(null);
   if (!myKeyRef.current) {
     const saved = sessionStorage.getItem("tele_key");
     myKeyRef.current =
-      saved || (crypto?.randomUUID?.() || Math.random().toString(36).slice(2, 11));
+      saved ||
+      (crypto?.randomUUID?.() || Math.random().toString(36).slice(2, 11));
     if (!saved) sessionStorage.setItem("tele_key", myKeyRef.current);
   }
   const myKey = myKeyRef.current;
@@ -130,9 +140,9 @@ export default function WebRtcSession() {
     sendCaption("patient", text);
     try {
       await sendSignTextToDB(roomId || reservationId, text);
-      console.log(`[API] 수어 텍스트 저장 성공: "${text}"`);
+      console.log(`[API OK] 수어 텍스트 저장 성공: "${text}"`);
     } catch (error) {
-      console.error("[API] 수어 텍스트 저장 실패:", error);
+      console.error("[API FAIL] 수어 텍스트 저장 실패:", error);
     }
     setRecognizedText("");
   };
@@ -164,7 +174,9 @@ export default function WebRtcSession() {
     const v = remoteVideoRef.current;
     if (!v) return;
     if (v.srcObject !== stream) v.srcObject = stream;
-    v.play?.().catch((e) => console.debug("[attachRemoteStream] play() error:", e));
+    v.play?.().catch((e) =>
+      console.debug("[attachRemoteStream] play() error:", e)
+    );
   }
 
   function bindDataChannel(ch) {
@@ -193,7 +205,10 @@ export default function WebRtcSession() {
   const sendCaption = useCallback((source, text) => {
     const t = (text || "").trim();
     if (!t) return;
-    setMessages((prev) => [...prev, { id: crypto.randomUUID(), role: source, text: t }]);
+    setMessages((prev) => [
+      ...prev,
+      { id: crypto.randomUUID(), role: source, text: t },
+    ]);
 
     const ch = dataChannelRef.current;
     const payload = { type: "caption", source, text: t, t: Date.now() };
@@ -264,13 +279,15 @@ export default function WebRtcSession() {
           if (e.data.size > 0) mediaRecRef.current.chunks.push(e.data);
         };
         rec.onstop = async () => {
-          const audioBlob = new Blob(mediaRecRef.current.chunks, { type: "audio/webm" });
+          const audioBlob = new Blob(mediaRecRef.current.chunks, {
+            type: "audio/webm",
+          });
           if (audioBlob.size > 1000) {
             try {
               await sendSpeechToDB(roomId || reservationId, audioBlob);
-              console.log("[API] 음성 전송 및 저장 성공");
+              console.log("[API OK] 의사 음성 업로드 성공");
             } catch (error) {
-              console.error("[API] 음성 전송 실패:", error);
+              console.error("[API FAIL] 의사 음성 업로드 실패:", error);
             }
           }
         };
@@ -392,7 +409,7 @@ export default function WebRtcSession() {
     }
   }
 
-  const endCall = useCallback(() => {
+  const endCall = useCallback(async () => {
     if (sttOn) {
       try {
         mediaRecRef.current?.rec?.stop();
@@ -453,10 +470,19 @@ export default function WebRtcSession() {
       }
     }
 
+    // 세션 종료 API 호출
+    try {
+      if (roomId) {
+        await endSession(roomId);
+      }
+    } catch (e) {
+      console.error("[API FAIL] 세션 종료 실패:", e);
+    }
+
     setSttOn(false);
     iceLoggedRef.current = false;
     console.log("[RTC] call ended and resources cleaned");
-  }, [sttOn]);
+  }, [sttOn, roomId]);
 
   // 예약번호 파라미터
   useEffect(() => {
@@ -482,7 +508,12 @@ export default function WebRtcSession() {
         <div className="tele__toolbar">
           <div className="tele__room">
             <label className="tele__label">예약번호</label>
-            <input className="tele__input" value={reservationId} disabled readOnly />
+            <input
+              className="tele__input"
+              value={reservationId}
+              disabled
+              readOnly
+            />
           </div>
 
           <div className="tele__actions">
@@ -519,7 +550,9 @@ export default function WebRtcSession() {
                       live={true}
                     />
                     <div className="tele__live_status">
-                      {liveSignWord ? `인식중: ${liveSignWord}` : "수어 인식 대기 중..."}
+                      {liveSignWord
+                        ? `인식중: ${liveSignWord}`
+                        : "수어 인식 대기 중..."}
                     </div>
                   </div>
                 )}
@@ -531,9 +564,14 @@ export default function WebRtcSession() {
                     placeholder="번역된 문장이 표시됩니다."
                     value={recognizedText}
                     onChange={(e) => setRecognizedText(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && handleSendPatientCaption()}
+                    onKeyDown={(e) =>
+                      e.key === "Enter" && handleSendPatientCaption()
+                    }
                   />
-                  <button className="btn btn--primary" onClick={handleSendPatientCaption}>
+                  <button
+                    className="btn btn--primary"
+                    onClick={handleSendPatientCaption}
+                  >
                     자막 전송
                   </button>
                 </div>

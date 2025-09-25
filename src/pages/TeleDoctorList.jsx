@@ -59,7 +59,9 @@ function Pagination({ page, totalPages, onChange }) {
           <button className="pager__num" onClick={() => onChange(0)}>
             1
           </button>
-          <span className="pager__dots" aria-hidden>…</span>
+          <span className="pager__dots" aria-hidden>
+            …
+          </span>
         </>
       )}
 
@@ -76,7 +78,9 @@ function Pagination({ page, totalPages, onChange }) {
 
       {page < totalPages - 3 && (
         <>
-          <span className="pager__dots" aria-hidden>…</span>
+          <span className="pager__dots" aria-hidden>
+            …
+          </span>
           <button className="pager__num" onClick={() => onChange(totalPages - 1)}>
             {totalPages}
           </button>
@@ -96,8 +100,8 @@ function Pagination({ page, totalPages, onChange }) {
 }
 
 export default function TeleDoctorList() {
-  const [page, setPage] = useState(0);     
-  const [size] = useState(10);             
+  const [page, setPage] = useState(0);
+  const [size] = useState(10);
   const [totalPages, setTotalPages] = useState(1);
 
   const [doctors, setDoctors] = useState([]);

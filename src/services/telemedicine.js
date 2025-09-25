@@ -1,48 +1,78 @@
-// src/services/telemedicine.js
 import { api } from "../lib/api";
 
 /**
  * [환자 → 텍스트 전송]
- * 번역된 수어 텍스트를 서버 DB에 저장
- *
- * @param {string} roomId - 현재 WebRTC 방(roomId 또는 reservationId)
- * @param {string} text - 변환된 텍스트 메시지
- * @returns {Promise<object>} 서버 응답 데이터
  */
 export async function sendSignTextToDB(roomId, text) {
   const payload = { message: (text || "").trim() };
   if (!payload.message) return { skipped: true };
 
-  const { data } = await api.post(`/v2/telemed/${roomId}/sign`, payload);
-  return data;
+  try {
+    const { data } = await api.post(`/v2/telemed/${roomId}/sign`, payload);
+    console.log(`[API OK] 수어 텍스트 저장 성공: "${payload.message}"`);
+    return data;
+  } catch (err) {
+    console.error("[API FAIL] 수어 텍스트 저장 실패:", err);
+    throw err;
+  }
 }
 
 /**
  * [의사 → 음성 업로드]
- * 녹음된 의사 음성 파일을 서버에 업로드하여
- * 1) STT 변환 (CLOVA)
- * 2) 변환된 텍스트 DB 저장
- * 을 요청
- *
- * @param {string} roomId - 현재 WebRTC 방(roomId 또는 reservationId)
- * @param {Blob} audioBlob - 녹음된 오디오(blob)
- * @returns {Promise<object>} 서버 응답 데이터 (예: { text: "인식된 문장" })
  */
 export async function sendSpeechToDB(roomId, audioBlob) {
   const formData = new FormData();
-
-  // 서버가 File 객체를 기대할 수 있으므로 Blob → File 변환
   const audioFile =
     audioBlob instanceof File
       ? audioBlob
       : new File([audioBlob], "speech.webm", { type: "audio/webm" });
-
   formData.append("file", audioFile);
 
-  const { data } = await api.post(`/v2/telemed/${roomId}/speech`, formData, {
-    headers: {
-      "Content-Type": "multipart/form-data",
-    },
-  });
-  return data;
+  try {
+    const { data } = await api.post(`/v2/telemed/${roomId}/speech`, formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+    console.log("[API OK] 의사 음성 업로드 & STT 변환 성공:", data);
+    return data;
+  } catch (err) {
+    console.error("[API FAIL] 의사 음성 업로드 실패:", err);
+    throw err;
+  }
+}
+
+/**
+ * [환자 → 음성 업로드]
+ */
+export async function sendPatientSpeechToDB(roomId, audioBlob) {
+  const formData = new FormData();
+  const audioFile =
+    audioBlob instanceof File
+      ? audioBlob
+      : new File([audioBlob], "patient_speech.webm", { type: "audio/webm" });
+  formData.append("file", audioFile);
+
+  try {
+    const { data } = await api.post(`/v2/telemed/${roomId}/speech-patient`, formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+    console.log("[API OK] 환자 음성 업로드 성공:", data);
+    return data;
+  } catch (err) {
+    console.error("[API FAIL] 환자 음성 업로드 실패:", err);
+    throw err;
+  }
+}
+
+/**
+ * [세션 종료]
+ */
+export async function endSession(roomId) {
+  try {
+    const { data } = await api.post(`/v2/telemed/${roomId}/end`);
+    console.log("[API OK] 세션 종료 성공:", data);
+    return data;
+  } catch (err) {
+    console.error("[API FAIL] 세션 종료 실패:", err);
+    throw err;
+  }
 }

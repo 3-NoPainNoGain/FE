@@ -1,44 +1,47 @@
-// src/pages/DoctorReservationList.jsx
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
 import "./doctor-reservation-list.css";
 
 import {
-  STATUS,                // 내부 표준: { PENDING, ACCEPTED, REJECTED, COMPLETED }
   listReservations,
   getReservation,
-  setReservationDecision, // (id, isAccept:boolean) → POST /reservation/{id}/accept
+  setReservationDecision,
 } from "../services/reservation";
 
-/* BE 상태 → UI 표준 상태 매핑 */
+const STATUS = {
+  PENDING: "PENDING",
+  ACCEPTED: "ACCEPTED",
+  REJECTED: "REJECTED",
+  COMPLETED: "COMPLETED",
+};
+
+/* BE 상태 → FE 상태 매핑 */
 function normalizeStatus(raw) {
   const s = String(raw || "").toUpperCase();
-  // 대기
-  if (s === "REQUESTED" || s === "PENDING" || s === "WAITING") return STATUS.PENDING;
-  // 수락됨
-  if (s === "CONFIRMED" || s === "ACCEPTED" || s === "ACTIVE") return STATUS.ACCEPTED;
+
+  // 대기 상태
+  if (["REQUESTED"].includes(s)) return STATUS.PENDING;
+
+  // 수락됨 (CONFIRMED도 ACCEPTED로 매핑해야 새로고침해도 유지됨)
+  if (["CONFIRMED", "ACCEPTED", "ACTIVE"].includes(s)) return STATUS.ACCEPTED;
+
   // 거절/취소
-  if (s === "REJECTED" || s === "CANCELED" || s === "CANCELLED") return STATUS.REJECTED;
+  if (["REJECTED", "CANCELED", "CANCELLED"].includes(s)) return STATUS.REJECTED;
+
   // 완료
-  if (s === "COMPLETED" || s === "DONE" || s === "FINISHED") return STATUS.COMPLETED;
-  console.warn("[DoctorReservationList] unknown status:", raw);
+  if (["COMPLETED", "DONE", "FINISHED"].includes(s)) return STATUS.COMPLETED;
+
   return STATUS.PENDING;
 }
 
-/* 목록에 실명 붙이기 (N+1) */
+/* 목록에 이름 붙이기 */
 async function hydrateWithNames(items) {
   const details = await Promise.all(
     items.map((it) =>
       getReservation(it.reservationId)
-        .then((d) => ({
-          id: it.reservationId,
-          name: d?.name || `환자 #${it.patientId}`,
-        }))
-        .catch(() => ({
-          id: it.reservationId,
-          name: `환자 #${it.patientId}`,
-        }))
+        .then((d) => ({ id: it.reservationId, name: d?.name || `환자 #${it.patientId}` }))
+        .catch(() => ({ id: it.reservationId, name: `환자 #${it.patientId}` }))
     )
   );
   const nameMap = new Map(details.map((d) => [d.id, d.name]));
@@ -46,7 +49,7 @@ async function hydrateWithNames(items) {
     id: it.reservationId,
     name: nameMap.get(it.reservationId) || `환자 #${it.patientId}`,
     symptoms: it.symptom,
-    status: normalizeStatus(it.status), // ← 정규화 적용
+    status: normalizeStatus(it.status),
     dateLabel: `${String(it.slotDate || "").replaceAll("-", ".")} | ${String(
       it.startTime || ""
     ).slice(0, 5)}~${String(it.endTime || "").slice(0, 5)}`,
@@ -56,14 +59,9 @@ async function hydrateWithNames(items) {
 
 export default function DoctorReservationList() {
   const [rows, setRows] = useState([]);
-  const [loading, setLoading] = useState(true);  // ESLint 경고 제거용으로 UI에 노출
+  const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
-
-  const [confirm, setConfirm] = useState({
-    open: false,
-    id: null,
-    action: null, // "ACCEPT" | "REJECT"
-  });
+  const [confirm, setConfirm] = useState({ open: false, id: null, action: null });
 
   useEffect(() => {
     let alive = true;
@@ -72,13 +70,11 @@ export default function DoctorReservationList() {
       try {
         setLoading(true);
         setErr("");
-        // BE가 results.items로 줄 수 있어 안전 처리
         const resp = await listReservations({ page: 0, size: 10 });
         const items = resp?.items || resp?.results?.items || [];
         const merged = await hydrateWithNames(items);
         if (alive) setRows(merged);
       } catch (e) {
-        console.error("[DoctorReservationList] list error:", e);
         if (alive) setErr("예약 목록을 불러오는 중 오류가 발생했어요.");
       } finally {
         if (alive) setLoading(false);
@@ -86,7 +82,7 @@ export default function DoctorReservationList() {
     };
 
     fetchList();
-    const timer = setInterval(fetchList, 5000); // 5초마다 갱신
+    const timer = setInterval(fetchList, 5000);
     return () => {
       alive = false;
       clearInterval(timer);
@@ -104,18 +100,16 @@ export default function DoctorReservationList() {
   const confirmAction = async () => {
     if (!confirm.open || !confirm.id) return close();
     const isAccept = confirm.action === "ACCEPT";
-    // BE: /reservation/{id}/accept {accept: true|false}
-    // true → CONFIRMED, false → CANCELED(또는 REJECTED)
     const nextStatus = isAccept ? STATUS.ACCEPTED : STATUS.REJECTED;
 
     try {
       await setReservationDecision(confirm.id, isAccept);
-      // 즉시 UI 반영
       setRows((prev) =>
-        prev.map((r) => (r.id === confirm.id ? { ...r, status: nextStatus } : r))
+        isAccept
+          ? prev.map((r) => (r.id === confirm.id ? { ...r, status: nextStatus } : r))
+          : prev.filter((r) => r.id !== confirm.id) // 거절 시 행 삭제
       );
-    } catch (e) {
-      console.error("[DoctorReservationList] decision error:", e);
+    } catch {
       alert("요청 처리에 실패했어요. 다시 시도해 주세요.");
     } finally {
       close();
@@ -129,7 +123,6 @@ export default function DoctorReservationList() {
   return (
     <div className="telemed apply">
       <Sidebar />
-
       <main className="doclist__main">
         <div className="doclist__container">
           <section className="doclist__card">
@@ -138,97 +131,80 @@ export default function DoctorReservationList() {
               <div className="doclist__meta">대기 {pendingCount}건</div>
             </header>
 
-            {/* 로딩/에러 배너: 경고 제거 및 상태 가시화 */}
             {loading && <div className="doclist__banner">불러오는 중…</div>}
             {!!err && <div className="doclist__banner doclist__banner--error">{err}</div>}
 
-            <div className="doclist__table" role="table" aria-label="진료 예약 목록">
-              <div className="doclist__thead" role="rowgroup">
-                <div className="doclist__row doclist__row--head" role="row">
-                  <div className="col col--time" role="columnheader">예약일시</div>
-                  <div className="col col--name" role="columnheader">이름</div>
-                  <div className="col col--symptom" role="columnheader">증상</div>
-                  <div className="col col--paper" role="columnheader">진료 신청서</div>
-                  <div className="col col--actions" role="columnheader">수락여부</div>
+            <div className="doclist__table" role="table">
+              <div className="doclist__thead">
+                <div className="doclist__row doclist__row--head">
+                  <div className="col col--time">예약일시</div>
+                  <div className="col col--name">이름</div>
+                  <div className="col col--symptom">증상</div>
+                  <div className="col col--paper">진료 신청서</div>
+                  <div className="col col--actions">수락여부</div>
                 </div>
               </div>
 
-              <div className="doclist__tbody" role="rowgroup">
-                {rows.map((r) => (
-                  <div className="doclist__row" role="row" key={r.id}>
-                    <div className="col col--time" role="cell">{r.dateLabel}</div>
-                    <div className="col col--name" role="cell">{r.name}</div>
-                    <div className="col col--symptom" role="cell">{r.symptoms}</div>
+<div className="doclist__tbody">
+  {rows
+    .filter((r) => r.status !== STATUS.REJECTED) // ⬅️ 거절/취소 예약 숨기기
+    .map((r) => (
+      <div className="doclist__row" key={r.id}>
+        <div className="col col--time">{r.dateLabel}</div>
+        <div className="col col--name">{r.name}</div>
+        <div className="col col--symptom">{r.symptoms}</div>
+        <div className="col col--paper">
+          <Link className="doclist__link" to={r.applyPath}>
+            진료 신청서
+          </Link>
+        </div>
+        <div className="col col--actions">
+          {r.status === STATUS.PENDING && (
+            <div className="actions">
+              <button
+                className="btn btn--ghost"
+                onClick={() => ask(r.id, "REJECT")}
+              >
+                거절
+              </button>
+              <button
+                className="btn btn--primary"
+                onClick={() => ask(r.id, "ACCEPT")}
+              >
+                수락
+              </button>
+            </div>
+          )}
 
-                    <div className="col col--paper" role="cell">
-                      <Link className="doclist__link" to={r.applyPath}>
-                        진료 신청서
-                      </Link>
-                    </div>
+{r.status === STATUS.ACCEPTED && (
+  <div className="actions">
+    <Link
+      to={`/tele/session/${r.id}`}
+      state={{ roleHint: "doctor" }}
+      className="btn btn--primary no-underline"
+    >
+      진료 입장
+    </Link>
+  </div>
+)}
 
-                    <div className="col col--actions" role="cell">
-                      {/* 대기중: 수락/거절 버튼 */}
-                      {r.status === STATUS.PENDING && (
-                        <div className="actions">
-                          <button
-                            className="btn btn--ghost"
-                            onClick={() => ask(r.id, "REJECT")}
-                            aria-label="거절"
-                          >
-                            거절
-                          </button>
-                          <button
-                            className="btn btn--primary"
-                            onClick={() => ask(r.id, "ACCEPT")}
-                            aria-label="수락"
-                          >
-                            수락
-                          </button>
-                        </div>
-                      )}
 
-                      {/* 거절됨 */}
-                      {r.status === STATUS.REJECTED && (
-                        <span className="state state--rejected">거절</span>
-                      )}
+          {r.status === STATUS.COMPLETED && (
+            <span className="state state--accepted">수락 완료</span>
+          )}
+        </div>
+      </div>
+    ))}
+</div>
 
-                      {/* 수락됨 → 진료 입장 버튼 */}
-                      {r.status === STATUS.ACCEPTED && (
-                        <Link
-                          to={`/tele/session/${r.id}`}
-                          state={{ roleHint: "doctor" }}
-                          className="btn btn--primary"
-                          aria-label="진료 입장"
-                        >
-                          진료 입장
-                        </Link>
-                      )}
-
-                      {/* 완료됨 */}
-                      {r.status === STATUS.COMPLETED && (
-                        <span className="state state--accepted">수락 완료</span>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
             </div>
           </section>
         </div>
 
-        {/* 확인 모달 */}
         {confirm.open && (
-          <div className="dl-modal__backdrop" role="presentation" onClick={close}>
-            <div
-              className="dl-modal"
-              role="dialog"
-              aria-modal="true"
-              aria-labelledby="dl-modal-title"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <h3 id="dl-modal-title" className="dl-modal__title">
-                {titleText}
-              </h3>
+          <div className="dl-modal__backdrop" onClick={close}>
+            <div className="dl-modal" onClick={(e) => e.stopPropagation()}>
+              <h3 className="dl-modal__title">{titleText}</h3>
               <div className="dl-modal__actions">
                 <button className="dl-btn dl-btn--ghost" onClick={close}>
                   취소

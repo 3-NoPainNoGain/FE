@@ -19,6 +19,25 @@
   max-width: 1040px;        
   margin: 0 auto;
 }
+.doclist__row {
+  display: grid;
+  grid-template-columns:
+    minmax(180px, 260px)
+    minmax(80px, 110px)
+    1fr
+    minmax(100px, 130px)
+    minmax(120px, 160px);
+  gap: 10px;
+  align-items: center;
+  padding: 10px 12px;
+  border-radius: 10px;
+}
+
+.doclist__table {
+  width: 100%;
+  padding: 6px 12px 14px;
+  overflow-x: auto; /* 깨짐 방지 */
+}
 
 
 .doclist__header {
@@ -198,3 +217,18 @@
 .dl-btn--primary:hover{ filter: brightness(0.98); }
 
 
+/* 버튼처럼 쓰이는 링크 */
+.btn {
+  display: inline-flex;       /* 버튼처럼 정렬 */
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;      /* 밑줄 제거 */
+}
+
+.btn:visited {
+  color: #fff;                /* 방문 후에도 흰색 유지 */
+}
+
+.no-underline {
+  text-decoration: none !important; /* 강제 제거 */
+}

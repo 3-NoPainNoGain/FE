@@ -1,4 +1,6 @@
-// src/pages/WebRtcSession.jsx
+// [코드 제목] WebRtcSession.jsx (의사 채팅 마이크 + 환자 단어/문장 UI + 상단 정보 제거)
+// 파일: src/pages/WebRtcSession.jsx
+
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useParams, useLocation } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
@@ -15,20 +17,23 @@ import "./tele.css";
 import HandPoseTracker from "../components/HandPoseTracker";
 
 /* ------------ Chat Bubble ------------ */
-function ChatBubble({ role, text }) {
-  if (role === "typing") {
-    return (
-      <div className="bubble bubble--typing">
-        <span className="typing__dot"></span>
-        <span className="typing__dot typing__dot--blue"></span>
-        <span className="typing__dot"></span>
-      </div>
-    );
-  }
-  const klass =
-    role === "patient" ? "bubble bubble--patient" : "bubble bubble--doctor";
-  return <div className={klass}>{text}</div>;
-}
+ function ChatBubble({ role, text, currentRole }) {
+   if (role === "typing") {
+     return (
+       <div className="bubble bubble--typing">
+         <span className="typing__dot"></span>
+         <span className="typing__dot typing__dot--blue"></span>
+         <span className="typing__dot"></span>
+       </div>
+     );
+   }
+  // 내 화면에서는 내가 보낸 메시지를 오른쪽 파란색(doctor 스타일)로,
+  // 상대가 보낸 건 왼쪽 분홍색(patient 스타일)로 보이게.
+  const me = currentRole === "ROLE_DOCTOR" ? "doctor" : "patient";
+  const isMine = role === me;
+  const klass = isMine ? "bubble bubble--doctor" : "bubble bubble--patient";
+   return <div className={klass}>{text}</div>;
+ }
 
 /* ------------ Peer helpers ------------ */
 function createPeer(localStream, iceServers, { onTrack, onIce, onDataChannel }) {
@@ -74,14 +79,15 @@ export default function WebRtcSession() {
 
   const selectedOptions = state?.interpretationOption || [];
 
-  // 환자는 무조건 수어 인식 UI 보이게
+  // 환자: 수어 인식 표시
   const enableSign =
     roleHint === "patient" ? true : selectedOptions.includes("SIGN_TO_TEXT");
 
-  // 의사는 무조건 음성 인식 UI 보이게
+  // 의사: 음성 인식 표시
   const enableVoice =
     roleHint === "doctor" ? true : selectedOptions.includes("VOICE_TO_TEXT");
 
+  // 세션 키
   const myKeyRef = useRef(null);
   if (!myKeyRef.current) {
     const saved = sessionStorage.getItem("tele_key");
@@ -95,11 +101,10 @@ export default function WebRtcSession() {
   // 상태
   const [reservationId, setReservationId] = useState("");
   const [role, setRole] = useState("");
-  const [status, setStatus] = useState("");
   const [roomId, setRoomId] = useState("");
   const [iceServers, setIceServers] = useState([]);
 
-  // 미디어/WebRTC Ref
+  // 미디어/WebRTC
   const localVideoRef = useRef(null);
   const remoteVideoRef = useRef(null);
   const localStreamRef = useRef(null);
@@ -107,33 +112,27 @@ export default function WebRtcSession() {
   const signalingRef = useRef(null);
   const dataChannelRef = useRef(null);
 
-  // 채팅 리스트
+  // 채팅
   const [messages, setMessages] = useState([]);
   const chatRef = useRef(null);
 
-  // 환자 입력/인식
+  // 환자 입력 문장 + 실시간 단어
   const [recognizedText, setRecognizedText] = useState("");
-  const [liveSignWord, setLiveSignWord] = useState("");
+  const [wsLive, setWsLive] = useState("");
 
-  // 입력/인식 Ref
+  // STT
   const sttRef = useRef(null);
   const [sttOn, setSttOn] = useState(false);
   const iceLoggedRef = useRef(false);
   const mediaRecRef = useRef({ rec: null, chunks: [] });
 
-  // 채팅 스크롤 유지
+  /* 채팅 스크롤 유지 */
   useEffect(() => {
     const el = chatRef.current;
     if (el) el.scrollTop = el.scrollHeight;
   }, [messages]);
 
-  // HandPose 콜백
-  const handleLiveWord = (word) => setLiveSignWord(word || "");
-  const handleRecognizedSentence = (text) => {
-    if (text) setRecognizedText(text);
-  };
-
-  // 환자 자막 전송
+  /* 환자 자막 전송 */
   const handleSendPatientCaption = async () => {
     const text = recognizedText.trim();
     if (!text) return;
@@ -141,18 +140,18 @@ export default function WebRtcSession() {
     try {
       await sendSignTextToDB(roomId || reservationId, text);
       console.log(`[API OK] 수어 텍스트 저장 성공: "${text}"`);
-    } catch (error) {
-      console.error("[API FAIL] 수어 텍스트 저장 실패:", error);
+    } catch {
+      /* ignored */
     }
     setRecognizedText("");
   };
 
-  // 로컬 미디어
+  /* 로컬 미디어 열기 */
   async function openCam(currentRole) {
     try {
       localStreamRef.current?.getTracks?.().forEach((t) => t.stop());
-    } catch (e) {
-      console.debug("[openCam] stop old tracks ignored:", e);
+    } catch {
+      /* ignored */
     }
     const constraints = { video: true, audio: currentRole === "ROLE_DOCTOR" };
     const s = await navigator.mediaDevices.getUserMedia(constraints);
@@ -164,8 +163,8 @@ export default function WebRtcSession() {
       lv.muted = true;
       try {
         await lv.play();
-      } catch (e) {
-        console.debug("[openCam] video.play blocked:", e);
+      } catch {
+        /* ignored */
       }
     }
   }
@@ -174,9 +173,9 @@ export default function WebRtcSession() {
     const v = remoteVideoRef.current;
     if (!v) return;
     if (v.srcObject !== stream) v.srcObject = stream;
-    v.play?.().catch((e) =>
-      console.debug("[attachRemoteStream] play() error:", e)
-    );
+    v.play?.().catch(() => {
+      /* ignored */
+    });
   }
 
   function bindDataChannel(ch) {
@@ -184,13 +183,13 @@ export default function WebRtcSession() {
     dataChannelRef.current = ch;
     ch.onopen = () => console.log("[DC] open");
     ch.onclose = () => console.log("[DC] close");
-    ch.onerror = (e) => console.warn("[DC] error", e);
+    ch.onerror = (err) => console.warn("[DC] error", err);
     ch.onmessage = (ev) => {
       let payload = ev.data;
       try {
         payload = JSON.parse(ev.data);
-      } catch (e) {
-        console.debug("[DC] non-JSON payload:", e);
+      } catch {
+        /* ignored */
       }
       if (!payload || typeof payload !== "object") return;
       if (payload.type === "caption" && payload.text) {
@@ -209,13 +208,12 @@ export default function WebRtcSession() {
       ...prev,
       { id: crypto.randomUUID(), role: source, text: t },
     ]);
-
     const ch = dataChannelRef.current;
     const payload = { type: "caption", source, text: t, t: Date.now() };
     try {
       if (ch && ch.readyState === "open") ch.send(JSON.stringify(payload));
-    } catch (e) {
-      console.debug("[DC] send error:", e);
+    } catch {
+      /* ignored */
     }
   }, []);
 
@@ -243,18 +241,32 @@ export default function WebRtcSession() {
     }
   }
 
+  /* 의사 STT 토글(지연생성) */
   const toggleDoctorSTT = useCallback(() => {
-    if (role !== "ROLE_DOCTOR" || !sttRef.current) return;
+    if (role !== "ROLE_DOCTOR") return;
+
+    if (!sttRef.current) {
+      try {
+        sttRef.current = createBrowserSTT({
+          lang: "ko-KR",
+          interimResults: true,
+        });
+      } catch (err) {
+        console.warn("이 브라우저는 Web Speech API를 지원하지 않습니다.", err);
+        return;
+      }
+    }
+
     if (sttOn) {
       try {
         sttRef.current.stop();
-      } catch (e) {
-        console.debug("[STT] stop ignored:", e);
+      } catch {
+        /* ignored */
       }
       try {
         mediaRecRef.current?.rec?.stop();
-      } catch (e) {
-        console.debug("[REC] stop ignored:", e);
+      } catch {
+        /* ignored */
       }
       setSttOn(false);
     } else {
@@ -292,13 +304,16 @@ export default function WebRtcSession() {
           }
         };
         rec.start(2000);
-      } catch (e) {
-        alert(`음성 인식을 시작할 수 없습니다.\n오류: ${e.message}`);
+      } catch (err) {
+        alert(`음성 인식을 시작할 수 없습니다.\n오류: ${err.message}`);
         setSttOn(false);
       }
     }
   }, [role, sttOn, sendCaption, roomId, reservationId]);
 
+
+
+  /* 참가 */
   async function joinAs(roleHint) {
     if (!reservationId) return alert("예약번호가 없습니다.");
     let res;
@@ -322,7 +337,6 @@ export default function WebRtcSession() {
 
     setRoomId(res.roomId);
     setRole(res.role);
-    setStatus(res.status);
     setIceServers(res.iceServers || []);
 
     await openCam(res.role);
@@ -363,20 +377,18 @@ export default function WebRtcSession() {
         const pc = peersRef.current.get("peer");
         if (!pc) return;
         if (body == null) {
-          pc.addIceCandidate(null).catch((e) =>
-            console.debug("[ICE] add null candidate fail:", e)
-          );
+          pc.addIceCandidate(null).catch(() => {
+            /* ignored */
+          });
           return;
         }
-        pc.addIceCandidate(new RTCIceCandidate(body)).catch((e) =>
-          console.debug("[ICE] add candidate fail:", e)
-        );
+        pc.addIceCandidate(new RTCIceCandidate(body)).catch(() => {
+          /* ignored */
+        });
       },
       onLeave: () => endCall(),
     });
     signalingRef.current = api;
-
-    setupRealtimeInputs(res.role);
 
     if (res.role === "ROLE_DOCTOR" && enableVoice) {
       setTimeout(() => {
@@ -385,60 +397,37 @@ export default function WebRtcSession() {
     }
   }
 
-  function setupRealtimeInputs(_role) {
-    if (_role === "ROLE_DOCTOR") {
-      if (!sttRef.current) {
-        try {
-          sttRef.current = createBrowserSTT({
-            lang: "ko-KR",
-            interimResults: true,
-          });
-        } catch (e) {
-          console.warn("이 브라우저는 Web Speech API를 지원하지 않습니다.", e);
-        }
-      }
-    } else {
-      if (sttRef.current) {
-        try {
-          sttRef.current.stop();
-        } catch (e) {
-          console.debug("[STT] stop on role switch ignored:", e);
-        }
-      }
-      setSttOn(false);
-    }
-  }
-
+  /* 종료 */
   const endCall = useCallback(async () => {
     if (sttOn) {
       try {
         mediaRecRef.current?.rec?.stop();
-      } catch (e) {
-        console.debug("[REC] stop ignored:", e);
+      } catch {
+        /* ignored */
       }
       try {
         sttRef.current?.stop?.();
-      } catch (e) {
-        console.debug("[STT] stop ignored:", e);
+      } catch {
+        /* ignored */
       }
     }
 
     try {
       signalingRef.current?.sendLeave?.();
-    } catch (e) {
-      console.debug("[WS] sendLeave ignored:", e);
+    } catch {
+      /* ignored */
     }
     try {
       signalingRef.current?.close?.();
-    } catch (e) {
-      console.debug("[WS] close ignored:", e);
+    } catch {
+      /* ignored */
     }
     signalingRef.current = null;
 
     try {
       dataChannelRef.current?.close?.();
-    } catch (e) {
-      console.debug("[DC] close ignored:", e);
+    } catch {
+      /* ignored */
     }
     dataChannelRef.current = null;
 
@@ -447,8 +436,8 @@ export default function WebRtcSession() {
 
     try {
       localStreamRef.current?.getTracks?.().forEach((t) => t.stop());
-    } catch (e) {
-      console.debug("[Media] tracks stop ignored:", e);
+    } catch {
+      /* ignored */
     }
 
     const lv = localVideoRef.current,
@@ -457,26 +446,23 @@ export default function WebRtcSession() {
       try {
         lv.pause();
         lv.srcObject = null;
-      } catch (e) {
-        console.debug("[Video] local pause ignored:", e);
+      } catch {
+        /* ignored */
       }
     }
     if (rv) {
       try {
         rv.pause();
         rv.srcObject = null;
-      } catch (e) {
-        console.debug("[Video] remote pause ignored:", e);
+      } catch {
+        /* ignored */
       }
     }
 
-    // 세션 종료 API 호출
     try {
-      if (roomId) {
-        await endSession(roomId);
-      }
-    } catch (e) {
-      console.error("[API FAIL] 세션 종료 실패:", e);
+      if (roomId) await endSession(roomId);
+    } catch (err) {
+      console.error("[API FAIL] 세션 종료 실패:", err);
     }
 
     setSttOn(false);
@@ -484,12 +470,12 @@ export default function WebRtcSession() {
     console.log("[RTC] call ended and resources cleaned");
   }, [sttOn, roomId]);
 
-  // 예약번호 파라미터
+  /* 예약번호 설정 */
   useEffect(() => {
     if (ridParam) setReservationId(String(ridParam));
   }, [ridParam]);
 
-  // 자동 참가
+  /* 자동 참가 */
   const autoJoinRef = useRef(false);
   useEffect(() => {
     if (!reservationId || autoJoinRef.current) return;
@@ -500,120 +486,106 @@ export default function WebRtcSession() {
   }, [reservationId, roleHint]);
 
   return (
-    <div className="visit">
-      <Sidebar />
-      <main className="visit__main">
-        <h2>비대면(WebRTC)</h2>
+  <div className="visit">
+    <Sidebar />
+    <main className="visit__main">
+      <div className="tele__grid">
+        {/* 좌측 채팅 */}
+        <section className="tele__chat">
+          <div className="tele__chat__scroll" ref={chatRef}>
+            {messages.map((m) => (
+   <ChatBubble
+     key={m.id}
+     role={m.role}
+     text={m.text}
+     currentRole={role}
+   />
+ ))}
+          </div>
+          {role === "ROLE_DOCTOR" && (
+            <div className="chat__mic">
+              <button
+                className={`mic-btn ${sttOn ? "is-on" : ""}`}
+                onClick={toggleDoctorSTT}
+                title={sttOn ? "음성 인식 중지" : "마이크로 말하기"}
+              >
+                {sttOn ? "⏹️" : "🎤"}
+              </button>
+            </div>
+          )}
+        </section>
 
-        <div className="tele__toolbar">
-          <div className="tele__room">
-            <label className="tele__label">예약번호</label>
-            <input
-              className="tele__input"
-              value={reservationId}
-              disabled
-              readOnly
+        {/* 우측 영상 */}
+        <section className="tele__pane">
+          <div className="tele__myvideo">
+            <video
+              ref={localVideoRef}
+              autoPlay
+              playsInline
+              muted
+              className="tele__video tele__video--mine"
             />
-          </div>
 
-          <div className="tele__actions">
-            <button className="btn btn--primary" onClick={startCall}>
-              진료 시작
-            </button>
-            <button className="btn" onClick={endCall}>
-              종료
-            </button>
-          </div>
-
-          <div className="tele__status">
-            room: <b>{roomId || "-"}</b> / role: <b>{role || "-"}</b> / status:{" "}
-            <b>{status || "-"}</b>
-          </div>
-        </div>
-
-        <div className="tele__grid">
-          {/* 좌측: 채팅 */}
-          <section className="tele__chat">
-            <div className="tele__chat__scroll" ref={chatRef}>
-              {messages.map((m) => (
-                <ChatBubble key={m.id} role={m.role} text={m.text} />
-              ))}
-            </div>
-
-            {role === "ROLE_PATIENT" && (
-              <div className="tele__sendbox">
-                {enableSign && (
-                  <div className="tele__cam_mini">
-                    <HandPoseTracker
-                      onSentence={handleRecognizedSentence}
-                      onLive={handleLiveWord}
-                      live={true}
-                    />
-                    <div className="tele__live_status">
-                      {liveSignWord
-                        ? `인식중: ${liveSignWord}`
-                        : "수어 인식 대기 중..."}
-                    </div>
-                  </div>
-                )}
-
-                <div className="tele__sendrow">
-                  <input
-                    type="text"
-                    className="tele__input"
-                    placeholder="번역된 문장이 표시됩니다."
-                    value={recognizedText}
-                    onChange={(e) => setRecognizedText(e.target.value)}
-                    onKeyDown={(e) =>
-                      e.key === "Enter" && handleSendPatientCaption()
-                    }
-                  />
-                  <button
-                    className="btn btn--primary"
-                    onClick={handleSendPatientCaption}
-                  >
-                    자막 전송
-                  </button>
-                </div>
-              </div>
-            )}
-          </section>
-
-          {/* 우측: 내 화면 + 상대 화면 */}
-          <section className="tele__pane">
-            <div className="tele__myvideo">
-              <video
-                ref={localVideoRef}
-                autoPlay
-                playsInline
-                muted
-                className="tele__video tele__video--mine"
-              />
-            </div>
-
-            <div className="tele__pip">
+            <div className="tele__pip tele__pip--overlay">
               <div className="tele__pip__label">상대 화면</div>
               <video
                 ref={remoteVideoRef}
                 autoPlay
                 playsInline
+                muted
                 className="tele__video tele__video--pip"
               />
             </div>
 
-            {role === "ROLE_DOCTOR" && enableVoice && (
-              <div className="tele__text__toolbar">
+             {role === "ROLE_PATIENT" && enableSign && (
+   <div className="tele__pose_overlay">
+     <HandPoseTracker
+       live={true}
+       onLive={(w) => setWsLive(String(w || "").trim())}
+       onSentence={(s) => {
+         const t = String(s || "").trim();
+         if (t) setRecognizedText(t);
+       }}
+     />
+   </div>
+ )}
+            {role === "ROLE_PATIENT" && enableSign && (
+              <div className="tele__live_badge">
+                {wsLive ? `인식된 단어: ${wsLive}` : "수어 인식 대기 중..."}
+              </div>
+            )}
+
+            {role === "ROLE_PATIENT" && enableSign && (
+              <div className="tele__input_overlay">
+                <input
+                  type="text"
+                  className="tele__input tele__input--overlay"
+                  placeholder="카메라를 보고 수화를 해 주세요"
+                  value={recognizedText}
+                  onChange={(e) => setRecognizedText(e.target.value)}
+                  onKeyDown={(e) =>
+                    e.key === "Enter" && handleSendPatientCaption()
+                  }
+                />
                 <button
-                  className={`btn ${sttOn ? "btn--primary" : "btn--ghost"}`}
-                  onClick={toggleDoctorSTT}
+                  className="tele__input_clear"
+                  onClick={() => setRecognizedText("")}
+                  aria-label="입력 지우기"
                 >
-                  {sttOn ? "음성인식 중지" : "음성인식 시작"}
+                  ×
                 </button>
               </div>
             )}
-          </section>
-        </div>
-      </main>
-    </div>
-  );
-}
+          </div>
+
+          {role === "ROLE_PATIENT" && enableSign && (
+            <button className="tele__send_big" onClick={handleSendPatientCaption}>
+              전송하기
+            </button>
+          )}
+        </section>
+      </div>
+    </main>
+  </div>
+);
+} // ← 컴포넌트 함수 닫힘 (중요!)

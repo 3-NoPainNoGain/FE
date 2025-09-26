@@ -215,11 +215,14 @@
   padding: 16px;
   overflow-y: auto;
   flex: 1;
+  display: flex;           /* ← 추가 */
+  flex-direction: column;  /* ← 추가 : 아래로만 쌓이기 */
+  gap: 4px;  
 }
 
 /* 대면 진료 버블 스타일 호환 */
 .bubble{
-  display:inline-block;
+  display:block;
   max-width: 80%;
   padding: 10px 14px;
   border-radius: 12px;
@@ -325,3 +328,182 @@
   .tele__pane{ min-height: 420px; }
   .tele__pip{ width: 36%; }
 }
+
+
+/* [CSS 포인트] TelePoseTracker 캔버스 컨테이너 */
+.tele__posebox {
+  position: relative;
+  width: 100%;
+  /* 필요시 최대 높이 제한 */
+  /* max-height: 360px; */
+  margin-bottom: 12px; /* 아래 입력줄과 간격 */
+}
+
+/* [CSS 포인트] 인식 상태 라벨 */
+.tele__live_status {
+  margin-top: 8px;
+  font-size: 13px;
+  color: #555;
+}
+
+/* [CSS 포인트] 우측 입력 줄 정렬 */
+.tele__sendrow--right {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+/* (선택) 혹시 숨김 비디오가 DOM에 남더라도 화면에 절대 안 나오게 */
+#handpose_input,
+video.mediapipe-input {
+  position: fixed;
+  left: -10000px;
+  top: -10000px;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+.tele__pane {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* 큰 로컬 비디오 컨테이너 */
+.tele__myvideo {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;   /* 필요 시 조정 */
+  background: #000;
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+/* 로컬 비디오를 컨테이너에 꽉 채우기 */
+.tele__video--mine {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* PiP를 오버레이로 */
+.tele__pip--overlay {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  width: 220px;           /* 필요 시 조정 */
+  aspect-ratio: 16 / 9;
+  background: #000;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 6px 16px rgba(0,0,0,0.25);
+}
+.tele__pip__label {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 2;
+  padding: 4px 8px;
+  border-radius: 10px;
+  background: rgba(255,255,255,0.9);
+  font-size: 12px;
+  color: #333;
+  pointer-events: none;
+}
+.tele__video--pip { width: 100%; height: 100%; object-fit: cover; }
+
+/* 포즈 캔버스도 오버레이 (자리 차지 X) */
+.tele__pose_overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;   /* 클릭 방해 방지 */
+}
+
+/* 비디오 아래 UI */
+.tele__live_status {
+  margin: 0 4px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: rgba(0,0,0,0.05);
+  font-size: 13px;
+  color: #444;
+}
+.tele__sendrow--right {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+/* === 스택 순서: 비디오(1) < 포즈(3) < 입력오버레이(4) < PIP(5) === */
+.tele__myvideo { position: relative; }
+
+/* PiP (상대 화면) */
+.tele__pip--overlay{
+  position:absolute;
+  left:16px; top:16px;
+  width:220px;              /* 필요시 조정 */
+  aspect-ratio:16/9;
+  border-radius:12px;
+  overflow:hidden;
+  background:#111;
+  box-shadow:0 6px 18px rgba(0,0,0,.25);
+  z-index:5;
+}
+.tele__pip__label{
+  position:absolute; top:8px; left:8px; z-index:6;
+  padding:4px 8px; font-size:12px;
+  background:#eee; color:#222; border-radius:6px; opacity:.92;
+  pointer-events:none;
+}
+.tele__video--pip{ width:100%; height:100%; object-fit:cover; display:block; }
+
+/* 포즈 오버레이 */
+.tele__pose_overlay{
+  position:absolute; inset:0; pointer-events:none; z-index:3;
+}
+.tele__pose_overlay canvas{
+  position:absolute; inset:0; width:100%; height:100%; display:block;
+  z-index:3 !important; pointer-events:none;
+}
+
+/* 인식된 단어 배지 (비디오 안쪽) */
+.tele__live_badge{
+  position:absolute; left:16px; bottom:76px;  /* 입력박스 위로 */
+  z-index:4;
+  padding:8px 10px;
+  background:rgba(0,0,0,.65);
+  color:#fff; font-size:14px; border-radius:12px;
+  pointer-events:none;
+}
+
+/* 하얀 입력 박스(비디오 안쪽, 오른쪽 끝) */
+.tele__input_overlay{
+  position:absolute; left:16px; right:16px; bottom:16px;
+  z-index:4;
+  display:flex; align-items:center; gap:8px;
+  background:#fff; border-radius:12px; padding:12px 14px;
+  box-shadow:0 8px 20px rgba(0,0,0,.18);
+}
+.tele__input--overlay{
+  flex:1; height:40px; border:0; outline:none; background:transparent; font-size:15px;
+}
+.tele__input_clear{
+  width:32px; height:32px; border-radius:999px; border:1px solid #e5e7eb; background:#fff;
+  display:inline-flex; align-items:center; justify-content:center; font-size:18px; line-height:1;
+}
+
+/* 비디오 아래 큰 전송 버튼 */
+.tele__send_big{
+  width:100%;
+  height:56px;
+  border-radius:16px;
+  background:#5b66ff;
+  color:#fff; font-weight:700; font-size:16px;
+  box-shadow: 0 8px 24px rgba(91,102,255,.28);
+  border:0;
+}
+.tele__send_big:hover{ filter:brightness(1.05); }
+

@@ -1,5 +1,3 @@
-// [코드 제목] AuthContext (BASIC/소셜 로그인, 회원가입, 이름 저장, 선택적 사용자 조회, 로그아웃)
-
 import {
   createContext,
   useContext,
@@ -10,13 +8,6 @@ import {
 } from "react";
 import { api } from "./axios";
 import { useNavigate } from "react-router-dom";
-
-/**
- * NOTE
- * - 이 파일은 모든 API 경로에 /api 접두사를 포함합니다.
- * - axios(api)의 baseURL이 https://handdoc.store 라면 아래 경로를 그대로 쓰세요.
- *   (만약 baseURL이 https://handdoc.store/api 라면 아래 경로에서 /api 를 제거하세요.)
- */
 
 // ---- 로컬 스토리지 헬퍼 ------------------------------------------------------
 const ACCESS_KEY = "accessToken";

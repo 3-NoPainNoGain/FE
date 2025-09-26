@@ -1,3 +1,4 @@
+// src/webrtc/signaling.js
 import { USE_MOCK } from "../config";
 
 /* ---------- MOCK: 같은 도메인의 두 탭 연결(BroadcastChannel) ---------- */
@@ -17,12 +18,16 @@ function createMockSignaling({
 
   const iceToJSON = (ice) => {
     if (!ice) return null;
-    if (typeof ice.toJSON === "function") return ice.toJSON();
+    try {
+      if (typeof ice.toJSON === "function") return ice.toJSON();
+    } catch (err) {
+      console.debug("[mock] ice toJSON 에러:", err);
+    }
     return {
-      candidate: ice.candidate,
-      sdpMid: ice.sdpMid ?? null,
-      sdpMLineIndex: ice.sdpMLineIndex ?? null,
-      usernameFragment: ice.usernameFragment ?? null,
+      candidate: ice?.candidate,
+      sdpMid: ice?.sdpMid ?? null,
+      sdpMLineIndex: ice?.sdpMLineIndex ?? null,
+      usernameFragment: ice?.usernameFragment ?? null,
     };
   };
 
@@ -32,13 +37,17 @@ function createMockSignaling({
     if (to && to !== myKey) return;
     if (key === myKey && type !== "key-request") return;
 
-    if (type === "bothReady") onReady?.(msg.shouldOffer === true);
-    else if (type === "offer") onOffer?.({ key, body: msg.body });
-    else if (type === "answer") onAnswer?.({ key, body: msg.body });
-    else if (type === "candidate" || type === "ice") onIce?.({ key, body: msg.body });
-    else if (type === "key-request") onKeyRequest?.();
-    else if (type === "key") onKeyReceive?.(key);
-    else if (type === "leave") onLeave?.({ key });
+    try {
+      if (type === "bothReady") onReady?.(msg.shouldOffer === true);
+      else if (type === "offer") onOffer?.({ key, body: msg.body });
+      else if (type === "answer") onAnswer?.({ key, body: msg.body });
+      else if (type === "candidate" || type === "ice") onIce?.({ key, body: msg.body });
+      else if (type === "key-request") onKeyRequest?.();
+      else if (type === "key") onKeyReceive?.(key);
+      else if (type === "leave") onLeave?.({ key });
+    } catch (err) {
+      console.warn("[mock] onmessage 핸들러 오류:", err);
+    }
   };
 
   const api = {
@@ -92,17 +101,25 @@ function createRealSignaling({
 
   const ws = new WebSocket(url);
   const send = (obj) => {
-    if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(obj));
+    try {
+      if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(obj));
+    } catch (err) {
+      console.warn("[SIG] send 실패:", err);
+    }
   };
 
   const iceToJSON = (ice) => {
     if (!ice) return null;
-    if (typeof ice.toJSON === "function") return ice.toJSON();
+    try {
+      if (typeof ice.toJSON === "function") return ice.toJSON();
+    } catch (err) {
+      console.debug("[SIG] ice toJSON 예외:", err);
+    }
     return {
-      candidate: ice.candidate,
-      sdpMid: ice.sdpMid ?? null,
-      sdpMLineIndex: ice.sdpMLineIndex ?? null,
-      usernameFragment: ice.usernameFragment ?? null,
+      candidate: ice?.candidate,
+      sdpMid: ice?.sdpMid ?? null,
+      sdpMLineIndex: ice?.sdpMLineIndex ?? null,
+      usernameFragment: ice?.usernameFragment ?? null,
     };
   };
 
@@ -129,54 +146,58 @@ function createRealSignaling({
     socket: ws,
   };
 
-  // [수정] 마지막으로 출력된 로그를 저장하기 위한 변수
+  // 마지막으로 출력된 메시지(중복 로그 방지)
   let lastLoggedMessage = "";
 
   ws.onopen = () => {
     console.log("[SIG] ws open", { url });
-    api.sendMyKey();
+    try {
+      api.sendMyKey();
+    } catch (err) {
+      console.warn("[SIG] 초기 키 전송 실패:", err);
+    }
   };
   ws.onmessage = (ev) => {
-    // [수정] 이전에 출력된 로그와 내용이 같으면 더 이상 진행하지 않음
-    if (ev.data === lastLoggedMessage) {
-      return;
-    }
-    // [수정] 현재 로그를 마지막 로그로 기록
-    lastLoggedMessage = ev.data;
-    
-    let msg;
     try {
-      msg = JSON.parse(ev.data);
-    } catch {
-      console.debug("[SIG] non-JSON message", ev.data);
-      return;
-    }
-    const { type, key, body } = msg || {};
-    if (type === "bothReady") {
-      console.log("[SIG] bothReady", msg);
-      onReady?.(msg.shouldOffer === true);
-      return;
-    }
-    if (type === "offer") {
-      console.log("[SIG] offer", body);
-      onOffer?.({ key, body });
-    } else if (type === "answer") {
-      console.log("[SIG] answer", body);
-      onAnswer?.({ key, body });
-    } else if (type === "candidate" || type === "ice") {
-      console.log("[SIG] ice/candidate", body);
-      onIce?.({ key, body });
-    } else if (type === "key-request") {
-      console.log("[SIG] key-request");
-      onKeyRequest?.();
-    } else if (type === "key") {
-      console.log("[SIG] key", key);
-      onKeyReceive?.(key);
-    } else if (type === "leave") {
-      console.log("[SIG] leave");
-      onLeave?.({ key });
-    } else {
-      console.log("[SIG] unknown type", type);
+      if (ev.data === lastLoggedMessage) return;
+      lastLoggedMessage = ev.data;
+
+      let msg;
+      try {
+        msg = JSON.parse(ev.data);
+      } catch (err) {
+        console.debug("[SIG] non-JSON message", ev.data);
+        return;
+      }
+      const { type, key, body } = msg || {};
+      if (type === "bothReady") {
+        console.log("[SIG] bothReady", msg);
+        onReady?.(msg.shouldOffer === true);
+        return;
+      }
+      if (type === "offer") {
+        console.log("[SIG] offer", body);
+        onOffer?.({ key, body });
+      } else if (type === "answer") {
+        console.log("[SIG] answer", body);
+        onAnswer?.({ key, body });
+      } else if (type === "candidate" || type === "ice") {
+        console.log("[SIG] ice/candidate", body);
+        onIce?.({ key, body });
+      } else if (type === "key-request") {
+        console.log("[SIG] key-request");
+        onKeyRequest?.();
+      } else if (type === "key") {
+        console.log("[SIG] key", key);
+        onKeyReceive?.(key);
+      } else if (type === "leave") {
+        console.log("[SIG] leave");
+        onLeave?.({ key });
+      } else {
+        console.log("[SIG] unknown type", type);
+      }
+    } catch (err) {
+      console.warn("[SIG] onmessage 처리 중 오류:", err);
     }
   };
   ws.onerror = (e) => console.warn("[SIG] error:", e?.message || e);

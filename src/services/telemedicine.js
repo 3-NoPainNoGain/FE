@@ -118,3 +118,18 @@ export async function getTelemedHistory({ page = 0, size = 10 } = {}) {
   }
 }
 
+// === 아래 함수 추가 ===
+// [비대면 진료 히스토리 상세 조회] GET /api/v2/telemed/history/{roomId}
+export async function getTelemedHistoryDetail(roomId) {
+  if (!roomId) throw new Error("roomId is required");
+  try {
+    const { data } = await api.get(
+      `/v2/telemed/history/${encodeURIComponent(roomId)}`
+    );
+    // 서버가 { isSuccess, results: {...} } 형태라면 results를, 아니면 data 자체를 반환
+    return data?.results ?? data;
+  } catch (err) {
+    console.error("[API FAIL] 히스토리 상세 조회 실패:", err);
+    throw err;
+  }
+}

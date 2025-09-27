@@ -33,9 +33,9 @@ export default function TelemedHistoryPage() {
   useEffect(() => { load(0); }, [load]);
 
   const goSummary = (roomId) => {
-    if (!roomId) return;
-    navigate(`/telemed/summary/${roomId}`);
-  };
+  if (!roomId) return;
+  navigate(`/telemed/history/${roomId}`);
+};
 
   const rows = useMemo(() => {
     return (items || []).map((it) => ({
@@ -88,7 +88,7 @@ export default function TelemedHistoryPage() {
                       style={styles.linkBtn}
                       title="진료 신청서 보기"
                     >
-                      진료 신청서
+                      진료 요약
                     </button>
                   </div>
                 </div>

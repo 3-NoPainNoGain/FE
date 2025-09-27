@@ -97,3 +97,24 @@ export async function getTelemedSummary(
     }
   }
 }
+
+// 비대면 진료 내역 조회 (GET /api/v2/telemed/history?page&size)
+export async function getTelemedHistory({ page = 0, size = 10 } = {}) {
+  try {
+    const { data } = await api.get("/v2/telemed/history", { params: { page, size } });
+    // 표준 응답이면 { results: { items, ... } }
+    const results = data?.results ?? data ?? {};
+    return {
+      items: results.items ?? [],
+      page: results.page ?? page,
+      size: results.size ?? size,
+      totalPages: results.totalPages ?? 1,
+      totalElements: results.totalElements ?? (results.items?.length ?? 0),
+      hasNext: !!results.hasNext,
+    };
+  } catch (err) {
+    console.error("[API FAIL] 비대면 진료 내역 조회 실패:", err);
+    throw err;
+  }
+}
+

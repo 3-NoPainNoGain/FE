@@ -56,25 +56,26 @@ export default function Sidebar() {
             {openTele && (
               <div className="sb__submenu">
                 {isPatient && (
-                  <>
-                    <NavLink
-                      to="/tele/doctor-list"
-                      className={({ isActive }) =>
-                        `sb__subitem${isActive ? " active" : ""}`
-                      }
-                    >
-                      진료 예약
-                    </NavLink>
-                    <NavLink
-                      to="/tele/history"
-                      className={({ isActive }) =>
-                        `sb__subitem${isActive ? " active" : ""}`
-                      }
-                    >
-                      진료 내역
-                    </NavLink>
-                  </>
-                )}
+  <>
+    <NavLink
+      to="/tele/doctor-list"
+      className={({ isActive }) =>
+        `sb__subitem${isActive ? " active" : ""}`
+      }
+    >
+      진료 예약
+    </NavLink>
+    <NavLink
+      to="/telemed/history"   // ✅ 경로 수정: /tele/history → /telemed/history
+      className={({ isActive }) =>
+        `sb__subitem${isActive ? " active" : ""}`
+      }
+    >
+      진료 내역
+    </NavLink>
+  </>
+)}
+
 
                 {isDoctor && (
                   <>

@@ -1,4 +1,5 @@
-// src/services/telemedicine.js
+// 파일: src/services/telemedicine.js
+
 import { api } from "../lib/api";
 
 /* -----------------------------------------------------------
@@ -112,5 +113,18 @@ export async function endSession(roomId) {
   }
 }
 
-// 필요 시 하위 호환
-// export { sendSpeechToDB as uploadSpeech };
+/**
+ * [비대면 진료 요약 조회]
+ */
+export async function getTelemedSummary(roomId) {
+  if (!roomId) throw new Error("roomId is required");
+  try {
+    const { data } = await api.get(`/v2/telemed/${encodeURIComponent(roomId)}/summary`);
+    // 서버가 { isSuccess, results } 형태면 results 우선 반환
+    return data?.results ?? data;
+  } catch (err) {
+    console.error("[API FAIL] 요약 조회 실패:", err);
+    throw err;
+  }
+}
+

@@ -17,6 +17,7 @@ import { AuthProvider } from "./auth/AuthContext";
 
 // ⬇️ 의사 뷰: 진료 예약 리스트 페이지
 import DoctorReservationList from "./pages/DoctorReservationList";
+import TelemedSummaryPage from "./pages/TelemedSummaryPage";
 
 export default function App() {
   return (
@@ -48,7 +49,7 @@ export default function App() {
             path="/tele/session/:reservationId/doctor"
             element={<Navigate to=".." replace state={{ roleHint: "doctor" }} />}
           />
-
+          <Route path="/telemed/summary/:roomId" element={<TelemedSummaryPage />} />
           {/* 의사 뷰 */}
           <Route path="/doctor/reservations" element={<DoctorReservationList />} />
 

@@ -1,6 +1,8 @@
-// src/pages/WebRtcSession.jsx
+// [코드 제목] WebRtcSession.jsx (의사 채팅 마이크 + 환자 단어/문장 UI + 종료 모달)
+// 파일: src/pages/WebRtcSession.jsx
+
 import { useEffect, useRef, useState, useCallback } from "react";
-import { useParams, useLocation } from "react-router-dom";
+import { useParams, useLocation, useNavigate } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
 import { connectSignalingWS } from "../webrtc/signaling";
 import { joinReservation } from "../services/reservation";
@@ -14,8 +16,9 @@ import {
 import "./tele.css";
 import HandPoseTracker from "../components/HandPoseTracker";
 
-/* ChatBubble: 'me' 기준 정렬 */
-function ChatBubble({ role, me, text }) {
+/* ------------ Chat Bubble ------------ */
+function ChatBubble({ role, text, currentRole }) {
+
   if (role === "typing") {
     return (
       <div className="bubble bubble--typing">
@@ -25,10 +28,12 @@ function ChatBubble({ role, me, text }) {
       </div>
     );
   }
-  const iAmDoctor = me === "ROLE_DOCTOR";
-  const isMine =
-    (iAmDoctor && role === "doctor") || (!iAmDoctor && role === "patient");
-  const klass = isMine ? "bubble bubble--patient" : "bubble bubble--doctor";
+  // 내 화면에서는 내가 보낸 메시지를 오른쪽 파란색(doctor 스타일)로,
+  // 상대가 보낸 건 왼쪽 분홍색(patient 스타일)로 보이게.
+  const me = currentRole === "ROLE_DOCTOR" ? "doctor" : "patient";
+  const isMine = role === me;
+  const klass = isMine ? "bubble bubble--doctor" : "bubble bubble--patient";
+
   return <div className={klass}>{text}</div>;
 }
 
@@ -87,6 +92,8 @@ export default function WebRtcSession() {
   // URL 파라미터/상태
   const { reservationId: ridParam } = useParams();
   const { state, search } = useLocation();
+  const navigate = useNavigate();
+
   const qp = new URLSearchParams(search);
   const roleHintParam = qp.get("role");
   const roleHint =
@@ -118,6 +125,9 @@ export default function WebRtcSession() {
   const [roomId, setRoomId] = useState("");
   const [iceServers, setIceServers] = useState([]);
   const [status, setStatus] = useState("");
+
+  // 종료 모달
+  const [showEndModal, setShowEndModal] = useState(false);
 
   // 미디어/WebRTC
   const localVideoRef = useRef(null);
@@ -171,9 +181,8 @@ export default function WebRtcSession() {
     sendCaption("patient", text);
     try {
       await sendSignTextToDB(roomId || reservationId, text);
-      console.log(`[API OK] 수어 텍스트 저장 성공: "${text}"`);
     } catch (e) {
-      console.debug("[API FAIL] 수어 텍스트 저장 실패(무시):", e);
+      void e;
     }
     setRecognizedText("");
   };
@@ -183,7 +192,7 @@ export default function WebRtcSession() {
     try {
       localStreamRef.current?.getTracks?.().forEach((t) => t.stop());
     } catch (e) {
-      console.debug("[MEDIA] 기존 트랙 stop 중 무시:", e);
+      void e;
     }
     // 환자 & enableSign OFF이면 오디오 활성화
     const wantAudio =
@@ -200,7 +209,8 @@ export default function WebRtcSession() {
       try {
         await lv.play();
       } catch (e) {
-        console.debug("[VIDEO] local play 실패(무시):", e);
+        void e;
+
       }
     }
   }
@@ -210,22 +220,24 @@ export default function WebRtcSession() {
     if (!v) return;
     if (v.srcObject !== stream) v.srcObject = stream;
     v.play?.().catch((e) => {
-      console.debug("[VIDEO] remote play 실패(무시):", e);
+      void e;
+
     });
   }
 
   function bindDataChannel(ch) {
     if (!ch) return;
     dataChannelRef.current = ch;
-    ch.onopen = () => console.log("[DC] open");
-    ch.onclose = () => console.log("[DC] close");
+    ch.onopen = () => console.log("[DC] open]");
+    ch.onclose = () => console.log("[DC] close]");
     ch.onerror = (err) => console.warn("[DC] error", err);
     ch.onmessage = (ev) => {
       let payload = ev.data;
       try {
         payload = JSON.parse(ev.data);
       } catch (e) {
-        console.debug("[DC] JSON 파싱 실패(문자열 payload):", e);
+        void e;
+
       }
       if (!payload || typeof payload !== "object") return;
       if (payload.type === "caption" && payload.text) {
@@ -245,7 +257,8 @@ export default function WebRtcSession() {
     try {
       if (ch && ch.readyState === "open") ch.send(JSON.stringify(payload));
     } catch (e) {
-      console.debug("[DC] 전송 실패(무시):", e);
+      void e;
+
     }
   }, []);
 
@@ -305,14 +318,15 @@ export default function WebRtcSession() {
     // 이미 녹음/인식 중이면 종료
     if (sttOn) {
       try {
-        mediaRecRef.current?.rec?.stop();
+        sttRef.current.stop();
       } catch (e) {
-        console.debug("[REC] stop 실패(무시):", e);
+        void e;
       }
       try {
-        sttRef.current?.stop?.();
+        mediaRecRef.current?.rec?.stop();
       } catch (e) {
-        console.debug("[STT] stop 실패(무시):", e);
+        void e;
+
       }
       setSttOn(false);
       return;
@@ -501,21 +515,18 @@ export default function WebRtcSession() {
         }
       },
       onIce: ({ body }) => {
-        try {
-          const pc = peersRef.current.get("peer");
-          if (!pc) return;
-          if (body == null) {
-            pc.addIceCandidate(null).catch((e) =>
-              console.debug("[ICE] add null candidate fail:", e)
-            );
-            return;
-          }
-          pc.addIceCandidate(new RTCIceCandidate(body)).catch((e) =>
-            console.debug("[ICE] add candidate fail:", e)
-          );
-        } catch (err) {
-          console.warn("[RTC] onIce 처리 실패:", err);
+        const pc = peersRef.current.get("peer");
+        if (!pc) return;
+        if (body == null) {
+          pc.addIceCandidate(null).catch((e) => {
+            void e;
+          });
+          return;
         }
+        pc.addIceCandidate(new RTCIceCandidate(body)).catch((e) => {
+          void e;
+        });
+
       },
       onLeave: () => endCall(),
     });
@@ -524,33 +535,39 @@ export default function WebRtcSession() {
 
   /* 종료 */
   const endCall = useCallback(async () => {
-    try {
-      mediaRecRef.current?.rec?.stop();
-    } catch (e) {
-      console.debug("[REC] stop in endCall 무시:", e);
-    }
-    try {
-      sttRef.current?.stop?.();
-    } catch (e) {
-      console.debug("[STT] stop in endCall 무시:", e);
+    if (sttOn) {
+      try {
+        mediaRecRef.current?.rec?.stop();
+      } catch (e) {
+        void e;
+      }
+      try {
+        sttRef.current?.stop?.();
+      } catch (e) {
+        void e;
+      }
+
     }
 
     try {
       signalingRef.current?.sendLeave?.();
     } catch (e) {
-      console.debug("[SIG] sendLeave 무시:", e);
+      void e;
+
     }
     try {
       signalingRef.current?.close?.();
     } catch (e) {
-      console.debug("[SIG] close 무시:", e);
+      void e;
+
     }
     signalingRef.current = null;
 
     try {
       dataChannelRef.current?.close?.();
     } catch (e) {
-      console.debug("[DC] close 무시:", e);
+      void e;
+
     }
     dataChannelRef.current = null;
 
@@ -564,7 +581,8 @@ export default function WebRtcSession() {
     try {
       localStreamRef.current?.getTracks?.().forEach((t) => t.stop());
     } catch (e) {
-      console.debug("[MEDIA] track stop 무시:", e);
+      void e;
+
     }
 
     const lv = localVideoRef.current,
@@ -574,7 +592,8 @@ export default function WebRtcSession() {
         lv.pause();
         lv.srcObject = null;
       } catch (e) {
-        console.debug("[VIDEO] local detach 무시:", e);
+        void e;
+
       }
     }
     if (rv) {
@@ -582,7 +601,8 @@ export default function WebRtcSession() {
         rv.pause();
         rv.srcObject = null;
       } catch (e) {
-        console.debug("[VIDEO] remote detach 무시:", e);
+        void e;
+
       }
     }
 
@@ -612,28 +632,66 @@ export default function WebRtcSession() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reservationId, roleHint]);
 
-  /* ============ JSX ============ */
+  /* ----- 종료 버튼/모달 핸들러 ----- */
+  const onClickEnd = useCallback(() => {
+    setShowEndModal(true);
+  }, []);
+  const onCancelEnd = useCallback(() => {
+    setShowEndModal(false);
+  }, []);
+
+  // 모달 확인(종료) — 채팅 백업 + endCall + 비대면 요약 페이지 이동
+  const onConfirmEnd = useCallback(async () => {
+    // 채팅 백업(옵션)
+    try {
+      const id = roomId || reservationId;
+      if (id) sessionStorage.setItem(`chat:${id}`, JSON.stringify(messages));
+    } catch (e) {
+      void e; // storage 불가시 무시
+    }
+
+    await endCall();
+    const id = roomId || reservationId;
+    navigate(`/telemed/summary/${id}`, { state: { messages } });
+  }, [endCall, navigate, roomId, reservationId, messages]);
+
+
   return (
     <div className="visit">
       <Sidebar />
       <main className="visit__main">
+        {/* 상단 종료 버튼 */}
+        <div className="tele__topbar">
+          <button
+            className="tele__end_btn"
+            type="button"
+            onClick={onClickEnd}
+            aria-label="진료 종료하기"
+          >
+            진료 종료하기
+          </button>
+        </div>
+
+
         <div className="tele__grid">
           {/* 좌측 채팅 */}
           <section className="tele__chat">
             <div className="tele__chat__scroll" ref={chatRef}>
               {messages.map((m) => (
-                <ChatBubble key={m.id} role={m.role} text={m.text} me={role} />
+                <ChatBubble
+                  key={m.id}
+                  role={m.role}
+                  text={m.text}
+                  currentRole={role}
+                />
               ))}
             </div>
-
-            {/* 마이크 버튼: 의사는 항상, 환자는 enableSign OFF일 때만 */}
-            {(role === "ROLE_DOCTOR" ||
-              (role === "ROLE_PATIENT" && !enableSign)) && (
+            {role === "ROLE_DOCTOR" && (
               <div className="chat__mic">
                 <button
                   className={`mic-btn ${sttOn ? "is-on" : ""}`}
-                  onClick={toggleMic}
-                  title={sttOn ? "음성 중지" : "마이크로 말하기"}
+                  onClick={toggleDoctorSTT}
+                  title={sttOn ? "음성 인식 중지" : "마이크로 말하기"}
                 >
                   {sttOn ? "⏹️" : "🎤"}
                 </button>
@@ -644,6 +702,7 @@ export default function WebRtcSession() {
           {/* 우측 영상 */}
           <section className="tele__pane">
             <div className="tele__myvideo">
+
               <video
                 ref={localVideoRef}
                 autoPlay
@@ -651,34 +710,20 @@ export default function WebRtcSession() {
                 muted
                 className="tele__video tele__video--mine"
               />
-              <div className="tele__actions tele__actions--overlay">
-                <button className="btn btn--primary" onClick={startCall}>
-                  연결 시작
-                </button>
-                <button className="btn" onClick={endCall}>
-                  진료 종료
-                </button>
-              </div>
-              <div className="tele__status tele__status--overlay">
-                room: <b>{roomId || "-"}</b> / role: <b>{role || "-"}</b> / status:{" "}
-                <b>{status || "-"}</b>
-              </div>
-            </div>
 
-            <div className="tele__pip tele__pip--overlay">
-              <div className="tele__pip__label">상대 화면</div>
-              <video
-                ref={remoteVideoRef}
-                autoPlay
-                playsInline
-                muted
-                className="tele__video tele__video--pip"
-              />
-            </div>
+              <div className="tele__pip tele__pip--overlay">
+                <div className="tele__pip__label">상대 화면</div>
+                <video
+                  ref={remoteVideoRef}
+                  autoPlay
+                  playsInline
+                  muted
+                  className="tele__video tele__video--pip"
+                />
+              </div>
 
-            {/* 환자 수어 UI: enableSign ON일 때만 */}
-            {role === "ROLE_PATIENT" && enableSign && (
-              <>
+              {role === "ROLE_PATIENT" && enableSign && (
+
                 <div className="tele__pose_overlay">
                   <HandPoseTracker
                     live={true}
@@ -689,10 +734,15 @@ export default function WebRtcSession() {
                     }}
                   />
                 </div>
+              )}
 
+              {role === "ROLE_PATIENT" && enableSign && (
                 <div className="tele__live_badge">
                   {wsLive ? `인식된 단어: ${wsLive}` : "수어 인식 대기 중..."}
                 </div>
+              )}
+
+              {role === "ROLE_PATIENT" && enableSign && (
 
                 <div className="tele__input_overlay">
                   <input
@@ -701,9 +751,8 @@ export default function WebRtcSession() {
                     placeholder="카메라를 보고 수화를 해 주세요"
                     value={recognizedText}
                     onChange={(e) => setRecognizedText(e.target.value)}
-                    onKeyDown={(e) =>
-                      e.key === "Enter" && handleSendPatientCaption()
-                    }
+                    onKeyDown={(e) => e.key === "Enter" && handleSendPatientCaption()}
+
                   />
                   <button
                     className="tele__input_clear"
@@ -713,17 +762,54 @@ export default function WebRtcSession() {
                     ×
                   </button>
                 </div>
+              )}
+            </div>
 
-                <button
-                  className="tele__send_big"
-                  onClick={handleSendPatientCaption}
-                >
-                  전송하기
-                </button>
-              </>
+            {role === "ROLE_PATIENT" && enableSign && (
+              <button className="tele__send_big" onClick={handleSendPatientCaption}>
+                전송하기
+              </button>
             )}
           </section>
         </div>
+
+        {/* 종료 모달 */}
+        {showEndModal && (
+          <div className="tele__end_modal__backdrop" role="presentation">
+            <div
+              className="tele__end_modal"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="endModalTitle"
+              aria-describedby="endModalDesc"
+            >
+              <h3 id="endModalTitle" className="tele__end_modal__title">
+                진료를 종료하시겠어요?
+              </h3>
+              <p id="endModalDesc" className="tele__end_modal__desc">
+                종료 후에는 요약 페이지로 이동합니다.
+              </p>
+
+              <div className="tele__end_modal__actions">
+                <button
+                  type="button"
+                  className="tele__end_modal__btn tele__end_modal__btn--outline"
+                  onClick={onCancelEnd}
+                >
+                  취소
+                </button>
+                <button
+                  type="button"
+                  className="tele__end_modal__btn tele__end_modal__btn--primary"
+                  onClick={onConfirmEnd}
+                >
+                  종료
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
       </main>
     </div>
   );

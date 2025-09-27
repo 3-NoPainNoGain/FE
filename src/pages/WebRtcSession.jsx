@@ -106,6 +106,11 @@ export default function WebRtcSession() {
   // 환자: 수어 인식 ON 조건
   const enableSign =
     roleHint === "patient" ? true : selectedOptions.includes("SIGN_TO_TEXT");
+  
+  // ==================== 1. 수정된 부분: enableVoice 변수 추가 ====================
+  // 환자: 음성 인식 ON 조건
+  const enableVoice = selectedOptions.includes("VOICE_TO_TEXT");
+  // =======================================================================
 
   // 세션 키
   const myKeyRef = useRef(null);
@@ -189,6 +194,7 @@ export default function WebRtcSession() {
         localStreamRef.current?.getTracks?.().forEach((t) => t.stop());
       } catch (e) {
         noop(e);
+
       }
       // 환자 & enableSign OFF이면 오디오 활성화
       const wantAudio =
@@ -218,6 +224,7 @@ export default function WebRtcSession() {
     if (v.srcObject !== stream) v.srcObject = stream;
     v.play?.().catch((err) => {
       noop(err);
+
     });
   }
 
@@ -233,6 +240,7 @@ export default function WebRtcSession() {
         payload = JSON.parse(ev.data);
       } catch (e) {
         noop(e);
+
       }
       if (!payload || typeof payload !== "object") return;
       if (payload.type === "caption" && payload.text) {
@@ -258,6 +266,7 @@ export default function WebRtcSession() {
     },
     [pushOrReplace]
   );
+
 
   async function startCall() {
     const api = signalingRef.current;
@@ -304,7 +313,8 @@ export default function WebRtcSession() {
         stream = localStreamRef.current;
       }
       const track = stream?.getAudioTracks?.()[0];
-      if (!track) throw new Error("오디오 트랙이 없습니다. 마이크 권한을 확인해 주세요.");
+      if (!track)
+        throw new Error("오디오 트랙이 없습니다. 마이크 권한을 확인해 주세요.");
       if (track.readyState !== "live" || track.enabled === false) {
         throw new Error("마이크가 비활성화되어 있습니다.");
       }
@@ -322,6 +332,7 @@ export default function WebRtcSession() {
         mediaRecRef.current?.rec?.stop();
       } catch (e) {
         noop(e);
+
       }
       setSttOn(false);
       return;
@@ -346,7 +357,8 @@ export default function WebRtcSession() {
 
       rec.ondataavailable = (e) => {
         try {
-          if (e.data && e.data.size > 0) mediaRecRef.current.chunks.push(e.data);
+          if (e.data && e.data.size > 0)
+            mediaRecRef.current.chunks.push(e.data);
         } catch (err) {
           console.warn("[REC] ondataavailable 에러:", err);
         }
@@ -355,11 +367,21 @@ export default function WebRtcSession() {
       rec.onstop = async () => {
         try {
           const usedType = rec.mimeType || mimeType || "audio/webm";
-          const audioBlob = new Blob(mediaRecRef.current.chunks, { type: usedType });
-          console.log("[REC] stopped. size=", audioBlob.size, "type=", audioBlob.type);
+          const audioBlob = new Blob(mediaRecRef.current.chunks, {
+            type: usedType,
+          });
+          console.log(
+            "[REC] stopped. size=",
+            audioBlob.size,
+            "type=",
+            audioBlob.type
+          );
           if (audioBlob.size > 200) {
             try {
-              const res = await sendSpeechToDB(roomId || reservationId, audioBlob);
+              const res = await sendSpeechToDB(
+                roomId || reservationId,
+                audioBlob
+              );
               console.log("[API OK] 음성 업로드 성공");
               const finalText =
    res?.text ??
@@ -368,7 +390,10 @@ export default function WebRtcSession() {
    res?.message ??
   "";
               if (finalText) {
-                pushOrReplace(role === "ROLE_DOCTOR" ? "doctor" : "patient", finalText);
+                pushOrReplace(
+                  role === "ROLE_DOCTOR" ? "doctor" : "patient",
+                  finalText
+                );
               }
             } catch (error) {
               console.error("[API FAIL] 음성 업로드 실패:", error);
@@ -392,6 +417,7 @@ export default function WebRtcSession() {
             });
           } catch (err) {
             console.warn("이 브라우저는 Web Speech API를 지원하지 않습니다.", err);
+
           }
         }
         try {
@@ -548,11 +574,13 @@ export default function WebRtcSession() {
       signalingRef.current?.sendLeave?.();
     } catch (e) {
       noop(e);
+
     }
     try {
       signalingRef.current?.close?.();
     } catch (e) {
       noop(e);
+
     }
     signalingRef.current = null;
 
@@ -560,6 +588,7 @@ export default function WebRtcSession() {
       dataChannelRef.current?.close?.();
     } catch (e) {
       noop(e);
+
     }
     dataChannelRef.current = null;
 
@@ -574,6 +603,7 @@ export default function WebRtcSession() {
       localStreamRef.current?.getTracks?.().forEach((t) => t.stop());
     } catch (e) {
       noop(e);
+
     }
 
     const lv = localVideoRef.current,
@@ -584,6 +614,7 @@ export default function WebRtcSession() {
         lv.srcObject = null;
       } catch (e) {
         noop(e);
+
       }
     }
     if (rv) {
@@ -592,6 +623,7 @@ export default function WebRtcSession() {
         rv.srcObject = null;
       } catch (e) {
         noop(e);
+
       }
     }
 
@@ -679,7 +711,8 @@ export default function WebRtcSession() {
                 />
               ))}
             </div>
-            {role === "ROLE_DOCTOR" && (
+            {/* ==================== 2. 수정된 부분: 마이크 버튼 렌더링 조건 변경 ==================== */}
+            {(role === "ROLE_DOCTOR" || (role === "ROLE_PATIENT" && enableVoice)) && (
               <div className="chat__mic">
                 <button
                   className={`mic-btn ${sttOn ? "is-on" : ""}`}
@@ -690,6 +723,7 @@ export default function WebRtcSession() {
                 </button>
               </div>
             )}
+            {/* =================================================================================== */}
           </section>
 
           {/* 우측 영상 */}
@@ -742,6 +776,7 @@ export default function WebRtcSession() {
                     value={recognizedText}
                     onChange={(e) => setRecognizedText(e.target.value)}
                     onKeyDown={(e) => e.key === "Enter" && handleSendPatientCaption()}
+
                   />
                   <button
                     className="tele__input_clear"
@@ -755,7 +790,10 @@ export default function WebRtcSession() {
             </div>
 
             {role === "ROLE_PATIENT" && enableSign && (
-              <button className="tele__send_big" onClick={handleSendPatientCaption}>
+              <button
+                className="tele__send_big"
+                onClick={handleSendPatientCaption}
+              >
                 전송하기
               </button>
             )}

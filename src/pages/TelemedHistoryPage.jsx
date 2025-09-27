@@ -1,9 +1,9 @@
-// 파일: src/pages/TelemedHistoryPage.jsx
 import "./visit.css";
 import { useEffect, useState, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
 import { getTelemedHistory } from "../services/telemedicine";
+
 
 export default function TelemedHistoryPage() {
   const navigate = useNavigate();
@@ -15,32 +15,26 @@ export default function TelemedHistoryPage() {
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState(null);
 
-  const load = useCallback(
-    async (p = 0) => {
-      setLoading(true);
-      setErr(null);
-      try {
-        // getTelemedHistory는 { items, page, size, hasNext } 형태를 반환한다고 가정
-        const res = await getTelemedHistory({ page: p, size });
-        setItems(res.items || []);
-        setHasNext(!!res.hasNext);
-        setPage(res.page ?? p);
-      } catch (e) {
-        setErr(e);
-      } finally {
-        setLoading(false);
-      }
-    },
-    [size]
-  );
+  const load = useCallback(async (p = 0) => {
+    setLoading(true);
+    setErr(null);
+    try {
+      const res = await getTelemedHistory({ page: p, size });
+      setItems(res.items || []);
+      setHasNext(!!res.hasNext);
+      setPage(res.page ?? p);
+    } catch (e) {
+      setErr(e);
+    } finally {
+      setLoading(false);
+    }
+  }, [size]);
 
-  useEffect(() => {
-    load(0);
-  }, [load]);
+  useEffect(() => { load(0); }, [load]);
 
-  const goDetail = (roomId) => {
+  const goSummary = (roomId) => {
     if (!roomId) return;
-    navigate(`/telemed/history/${roomId}`);
+    navigate(`/telemed/summary/${roomId}`);
   };
 
   const rows = useMemo(() => {
@@ -70,7 +64,9 @@ export default function TelemedHistoryPage() {
               </div>
 
               {/* 바디 */}
-              {loading && <div style={styles.empty}>불러오는 중…</div>}
+              {loading && (
+                <div style={styles.empty}>불러오는 중…</div>
+              )}
               {!loading && err && (
                 <div style={{ ...styles.empty, color: "#B42318" }}>
                   진료 내역을 불러오지 못했어요
@@ -79,38 +75,27 @@ export default function TelemedHistoryPage() {
               {!loading && !err && rows.length === 0 && (
                 <div style={styles.empty}>진료 내역이 없어요</div>
               )}
-              {!loading &&
-                !err &&
-                rows.map((r) => (
-                  <div key={r.id} style={styles.tr}>
-                    <div style={{ ...styles.td, flex: 2.4 }}>{r.slot}</div>
-                    <div style={{ ...styles.td, flex: 1.6 }}>{r.hospital}</div>
-                    <div style={{ ...styles.td, flex: 1.2 }}>{r.doctor}</div>
-                    <div style={{ ...styles.td, flex: 2.2, color: "#374151" }}>
-                      {r.symptom}
-                    </div>
-                    <div
-                      style={{
-                        ...styles.td,
-                        flex: 1,
-                        display: "flex",
-                        justifyContent: "flex-end",
-                      }}
+              {!loading && !err && rows.map((r) => (
+                <div key={r.id} style={styles.tr}>
+                  <div style={{ ...styles.td, flex: 2.4 }}>{r.slot}</div>
+                  <div style={{ ...styles.td, flex: 1.6 }}>{r.hospital}</div>
+                  <div style={{ ...styles.td, flex: 1.2 }}>{r.doctor}</div>
+                  <div style={{ ...styles.td, flex: 2.2, color: "#374151" }}>{r.symptom}</div>
+                  <div style={{ ...styles.td, flex: 1, display: "flex", justifyContent: "flex-end" }}>
+                    <button
+                      type="button"
+                      onClick={() => goSummary(r.id)}
+                      style={styles.linkBtn}
+                      title="진료 신청서 보기"
                     >
-                      <button
-                        type="button"
-                        onClick={() => goDetail(r.id)}
-                        style={styles.linkBtn}
-                        title="진료 신청서 보기"
-                      >
-                        진료 신청서
-                      </button>
-                    </div>
+                      진료 신청서
+                    </button>
                   </div>
-                ))}
+                </div>
+              ))}
             </div>
 
-            {/* 페이지네이션 */}
+            {/* 페이지네이션 (필요 시) */}
             <div style={styles.pager}>
               <button
                 type="button"
@@ -137,7 +122,7 @@ export default function TelemedHistoryPage() {
   );
 }
 
-/* 스타일 */
+/* 스타일 (첫 번째 스샷 분위기 맞춤) */
 const styles = {
   card: {
     background: "#fff",

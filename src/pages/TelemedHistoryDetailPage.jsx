@@ -1,9 +1,15 @@
-// 파일: src/pages/TelemedHistoryDetailPage.jsx
 import "./visit.css";
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
 import { getTelemedHistoryDetail } from "../services/telemedicine";
+
+// 좌/우 말풍선
+function ChatBubble({ role, text }) {
+  const isPatient = role === "patient";
+  const style = isPatient ? styles.bubblePatient : styles.bubbleDoctor;
+  return <div style={style}>{text}</div>;
+}
 
 export default function TelemedHistoryDetailPage() {
   const { roomId } = useParams();
@@ -12,7 +18,6 @@ export default function TelemedHistoryDetailPage() {
   const [err, setErr] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // 데이터 로드
   useEffect(() => {
     let alive = true;
     (async () => {
@@ -27,128 +32,126 @@ export default function TelemedHistoryDetailPage() {
         if (alive) setLoading(false);
       }
     })();
-    return () => { alive = false; };
+    return () => {
+      alive = false;
+    };
   }, [roomId]);
 
-  // 채팅(normalize) – TelemedSummaryPage 와 동일한 배치
+  // 채팅 정규화: API 예시(results.chat.messages[].{sender,message,timestamp})
   const chatItems = useMemo(() => {
-    // API 예시: results.chat.messages: [{sender:"PATIENT"|"DOCTOR", message, timestamp}]
-    const fromBackend = data?.chat?.messages ?? [];
+    const raw =
+      data?.chat?.messages ??
+      data?.chatMessages ??
+      data?.messages ??
+      data?.dialog ??
+      [];
 
     const norm = [];
-    for (const m of Array.isArray(fromBackend) ? fromBackend : []) {
-      if (!m) continue;
-      const role = m.sender === "PATIENT" ? "patient" : "doctor";
-      const text = String(m.message ?? "").trim();
-      if (text) norm.push({ id: crypto.randomUUID(), role, text });
+    for (const it of Array.isArray(raw) ? raw : []) {
+      if (!it) continue;
+      const role =
+        String(it.sender || it.role || "").toUpperCase() === "PATIENT"
+          ? "patient"
+          : "doctor";
+      const text = String(it.message ?? it.text ?? "").trim();
+      if (!text) continue;
+      const ts = it.timestamp ? Date.parse(it.timestamp) : Date.now();
+      norm.push({
+        id: it.id || `${role}-${ts}-${Math.random().toString(36).slice(2, 7)}`,
+        role,
+        text,
+        ts: Number.isFinite(ts) ? ts : Date.now(),
+      });
     }
+    // 시간순 정렬
+    norm.sort((a, b) => a.ts - b.ts);
     return norm;
   }, [data]);
 
-  const fmtTime = (t) => {
-    const s = String(t ?? "").trim();
-    return s || "정보 없음";
-  };
-  const fmtText = (v) => {
-    if (v == null) return "정보 없음";
-    if (Array.isArray(v)) {
-      return v.length ? v.join(", ") : "정보 없음";
-    }
-    const s = String(v).trim();
-    return s || "정보 없음";
-  };
-  const renderAny = (v) => {
+  const fmtAny = (v) => {
     if (v == null) return <span style={styles.muted}>정보 없음</span>;
     if (Array.isArray(v)) {
       if (!v.length) return <span style={styles.muted}>정보 없음</span>;
       return (
         <ul style={styles.ul}>
-          {v.map((it, idx) => <li key={idx}>{fmtText(it)}</li>)}
+          {v.map((x, i) => (
+            <li key={i}>{String(x)}</li>
+          ))}
         </ul>
       );
     }
-    if (typeof v === "object") {
-      const entries = Object.entries(v || {});
-      if (!entries.length) return <span style={styles.muted}>정보 없음</span>;
-      return (
-        <div style={styles.kvWrap}>
-          {entries.map(([k, val]) => (
-            <div key={k} style={styles.kvRow}>
-              <div style={styles.kvKey}>{k}</div>
-              <div style={styles.kvVal}>{fmtText(val)}</div>
-            </div>
-          ))}
-        </div>
-      );
-    }
     const s = String(v).trim();
-    return s ? <span>{s}</span> : <span style={styles.muted}>정보 없음</span>;
+    return s ? s : <span style={styles.muted}>정보 없음</span>;
   };
 
+  const summary = data?.summary ?? data?.report ?? {};
+
   return (
-    <div className="visit" style={{ '--sidebar-w': '220px' }}>
+    <div className="visit" style={{ "--sidebar-w": "220px" }}>
       <Sidebar />
       <main className="visit__main">
         <div className="vm__container">
-          <div style={styles.page}>
-            <section style={styles.grid}>
-              {/* 채팅 박스 */}
-              <div style={styles.chatCard}>
-                <div style={styles.chatScroll}>
-                  {loading && <div style={styles.empty}>불러오는 중…</div>}
-                  {!loading && !!err && (
-                    <div style={{ ...styles.empty, color: "#B42318" }}>
-                      요약을 불러오지 못했어요
-                    </div>
-                  )}
-                  {!loading && !err && chatItems.length === 0 && (
-                    <div style={styles.empty}>대화 내역이 없어요</div>
-                  )}
-                  {chatItems.map((m) => (
+          <div style={styles.grid}>
+            {/* 좌측: 채팅 */}
+            <div style={styles.chatCard}>
+              <div style={styles.chatScroll}>
+                {loading && <div style={styles.empty}>불러오는 중…</div>}
+                {!loading && !!err && (
+                  <div style={{ ...styles.empty, color: "#B42318" }}>
+                    대화 내역을 불러오지 못했어요
+                  </div>
+                )}
+                {!loading && !err && chatItems.length === 0 && (
+                  <div style={styles.empty}>대화 내역이 없어요</div>
+                )}
+                {!loading &&
+                  !err &&
+                  chatItems.map((m) => (
                     <ChatBubble key={m.id} role={m.role} text={m.text} />
                   ))}
-                </div>
               </div>
+            </div>
 
-              {/* 보고서 박스 (TelemedSummaryPage와 동일 레이아웃) */}
-              <div style={styles.reportCard}>
-                <div style={styles.reportTitle}>진료 내용 보고서</div>
-                <div style={styles.reportLine} />
+            {/* 우측: 요약 보고서 */}
+            <div style={styles.reportCard}>
+              <div style={styles.reportTitle}>진료 내용 보고서</div>
+              <div style={styles.reportLine} />
+              <div style={styles.reportScroll}>
+                {loading && <div style={styles.muted}>불러오는 중…</div>}
+                {!loading && !!err && (
+                  <div style={{ color: "#B42318", fontWeight: 600 }}>
+                    보고서를 불러오지 못했어요
+                  </div>
+                )}
 
-                <div style={styles.reportScroll}>
-                  {loading && <div style={styles.muted}>불러오는 중…</div>}
-                  {!loading && !!err && (
-                    <div style={{ color: "#B42318", fontWeight: 600 }}>
-                      보고서를 불러오지 못했어요
+                {!loading && !err && (
+                  <>
+                    <div style={styles.row}>
+                      <div style={styles.label}>진료 시간</div>
+                      <div style={styles.value}>
+                        {fmtAny(summary?.consultationTime)}
+                      </div>
                     </div>
-                  )}
-
-                  {!loading && !err && (
-                    <>
-                      <div style={styles.row}>
-                        <div style={styles.label}>진료 시간</div>
-                        <div style={styles.value}>{fmtTime(data?.summary?.consultationTime)}</div>
+                    <div style={styles.row}>
+                      <div style={styles.label}>증상</div>
+                      <div style={styles.value}>{fmtAny(summary?.symptom)}</div>
+                    </div>
+                    <div style={styles.row}>
+                      <div style={styles.label}>의사 소견</div>
+                      <div style={styles.value}>
+                        {fmtAny(summary?.impression)}
                       </div>
-
-                      <div style={styles.row}>
-                        <div style={styles.label}>증상</div>
-                        <div style={styles.value}>{renderAny(data?.summary?.symptom)}</div>
+                    </div>
+                    <div style={styles.row}>
+                      <div style={styles.label}>처방 / 안내</div>
+                      <div style={styles.value}>
+                        {fmtAny(summary?.prescription)}
                       </div>
-
-                      <div style={styles.row}>
-                        <div style={styles.label}>의사 소견</div>
-                        <div style={styles.value}>{renderAny(data?.summary?.impression)}</div>
-                      </div>
-
-                      <div style={styles.row}>
-                        <div style={styles.label}>처방 / 안내</div>
-                        <div style={styles.value}>{renderAny(data?.summary?.prescription)}</div>
-                      </div>
-                    </>
-                  )}
-                </div>
+                    </div>
+                  </>
+                )}
               </div>
-            </section>
+            </div>
           </div>
         </div>
       </main>
@@ -156,44 +159,105 @@ export default function TelemedHistoryDetailPage() {
   );
 }
 
-function ChatBubble({ role, text }) {
-  const isPatient = role === "patient";
-  const bubbleStyle = isPatient ? styles.bubblePatient : styles.bubbleDoctor;
-  return <div style={bubbleStyle}>{text}</div>;
-}
-
-// === TelemedSummaryPage 의 스타일 그대로 복붙 ===
+/* 스타일(진료요약 페이지와 동일 톤) */
 const styles = {
-  page: { maxWidth: "100%", margin: "0 0 60px", padding: "0",
-    fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, sans-serif" },
-  grid: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18 },
-  chatCard: { background: "#fff", borderRadius: 16,
-    boxShadow: "0 12px 28px rgba(0,0,0,.08)", padding: 14, height: 560,
-    display: "flex", flexDirection: "column" },
-  chatScroll: { flex: 1, overflow: "auto", padding: "6px 8px 6px",
-    display: "flex", flexDirection: "column", gap: 10 },
-  empty: { color: "#9CA3AF", textAlign: "center", marginTop: 20 },
-  bubblePatient: { alignSelf: "flex-end", maxWidth: "78%", background: "#E7F0FF",
-    color: "#24355b", padding: "10px 14px", borderRadius: 18,
-    borderBottomRightRadius: 8, lineHeight: 1.45, fontSize: 15 },
-  bubbleDoctor: { alignSelf: "flex-start", maxWidth: "78%", background: "#FDE7E9",
-    color: "#512b2c", padding: "10px 14px", borderRadius: 18,
-    borderBottomLeftRadius: 8, lineHeight: 1.45, fontSize: 15 },
-  reportCard: { background: "#fff", borderRadius: 16,
-    boxShadow: "0 12px 28px rgba(0,0,0,.08)", padding: 16, height: 560,
-    display: "flex", flexDirection: "column" },
-  reportTitle: { textAlign: "center", fontWeight: 800, color: "#3D46FF", marginBottom: 8 },
-  reportLine: { height: 2, background: "#D7DBFF", margin: "0 8px 12px" },
-  reportScroll: { flex: 1, overflow: "auto", padding: "0 6px 4px",
-    display: "flex", flexDirection: "column", gap: 10 },
-  row: { display: "grid", gridTemplateColumns: "120px 1fr", gap: 10,
-    padding: "10px 12px", border: "1px solid #EEF0FF", borderRadius: 12, background: "#FAFBFF" },
-  label: { fontWeight: 800, color: "#1F2937", alignSelf: "start" },
-  value: { color: "#111827", lineHeight: 1.6, whiteSpace: "pre-wrap", wordBreak: "break-word" },
+  grid: {
+    display: "grid",
+    gridTemplateColumns: "1fr 1fr",
+    gap: 18,
+  },
+  chatCard: {
+    background: "#fff",
+    borderRadius: 16,
+    boxShadow: "0 12px 28px rgba(0,0,0,.08)",
+    padding: 14,
+    height: 560,
+    display: "flex",
+    flexDirection: "column",
+  },
+  chatScroll: {
+    flex: 1,
+    overflow: "auto",
+    padding: "6px 8px 6px",
+    display: "flex",
+    flexDirection: "column",
+    gap: 10,
+  },
+  empty: {
+    color: "#9CA3AF",
+    textAlign: "center",
+    marginTop: 20,
+  },
+  bubblePatient: {
+    alignSelf: "flex-end",
+    maxWidth: "78%",
+    background: "#E7F0FF",
+    color: "#24355b",
+    padding: "10px 14px",
+    borderRadius: 18,
+    borderBottomRightRadius: 8,
+    lineHeight: 1.45,
+    fontSize: 15,
+  },
+  bubbleDoctor: {
+    alignSelf: "flex-start",
+    maxWidth: "78%",
+    background: "#FDE7E9",
+    color: "#512b2c",
+    padding: "10px 14px",
+    borderRadius: 18,
+    borderBottomLeftRadius: 8,
+    lineHeight: 1.45,
+    fontSize: 15,
+  },
+  reportCard: {
+    background: "#fff",
+    borderRadius: 16,
+    boxShadow: "0 12px 28px rgba(0,0,0,.08)",
+    padding: 16,
+    height: 560,
+    display: "flex",
+    flexDirection: "column",
+  },
+  reportTitle: {
+    textAlign: "center",
+    fontWeight: 800,
+    color: "#3D46FF",
+    marginBottom: 8,
+  },
+  reportLine: {
+    height: 2,
+    background: "#D7DBFF",
+    margin: "0 8px 12px",
+  },
+  reportScroll: {
+    flex: 1,
+    overflow: "auto",
+    padding: "0 6px 4px",
+    display: "flex",
+    flexDirection: "column",
+    gap: 10,
+  },
+  row: {
+    display: "grid",
+    gridTemplateColumns: "120px 1fr",
+    gap: 10,
+    padding: "10px 12px",
+    border: "1px solid #EEF0FF",
+    borderRadius: 12,
+    background: "#FAFBFF",
+  },
+  label: {
+    fontWeight: 800,
+    color: "#1F2937",
+    alignSelf: "start",
+  },
+  value: {
+    color: "#111827",
+    lineHeight: 1.6,
+    whiteSpace: "pre-wrap",
+    wordBreak: "break-word",
+  },
   muted: { color: "#9CA3AF" },
   ul: { margin: 0, paddingLeft: 18, lineHeight: 1.6 },
-  kvWrap: { display: "flex", flexDirection: "column", gap: 6 },
-  kvRow: { display: "grid", gridTemplateColumns: "140px 1fr", gap: 10 },
-  kvKey: { color: "#6B7280", fontWeight: 700 },
-  kvVal: { color: "#111827" },
 };

@@ -1,6 +1,4 @@
-// [코드 제목] WebRtcSession.jsx (의사 채팅 마이크 + 환자 단어/문장 UI + 종료 모달)
 // 파일: src/pages/WebRtcSession.jsx
-
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useParams, useLocation, useNavigate } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
@@ -11,6 +9,7 @@ import { createBrowserSTT } from "../services/stt";
 import {
   sendSignTextToDB,
   sendSpeechToDB,
+  sendPatientSpeechToDB,   // ✅ 환자 음성 업로드 추가
   endSession,
 } from "../services/telemedicine";
 import "./tele.css";
@@ -27,12 +26,9 @@ function ChatBubble({ role, text, currentRole }) {
       </div>
     );
   }
-  // 내 화면에서는 내가 보낸 메시지를 오른쪽 파란색(doctor 스타일)로,
-  // 상대가 보낸 건 왼쪽 분홍색(patient 스타일)로 보이게.
   const me = currentRole === "ROLE_DOCTOR" ? "doctor" : "patient";
   const isMine = role === me;
   const klass = isMine ? "bubble bubble--doctor" : "bubble bubble--patient";
-
   return <div className={klass}>{text}</div>;
 }
 
@@ -103,14 +99,9 @@ export default function WebRtcSession() {
 
   const selectedOptions = state?.interpretationOption || [];
 
-  // 환자: 수어 인식 ON 조건
-  const enableSign =
-    roleHint === "patient" ? true : selectedOptions.includes("SIGN_TO_TEXT");
-  
-  // ==================== 1. 수정된 부분: enableVoice 변수 추가 ====================
-  // 환자: 음성 인식 ON 조건
+  // ✅ 옵션 플래그 (역할과 무관하게 선택값만 반영)
+  const enableSign = selectedOptions.includes("SIGN_TO_TEXT");
   const enableVoice = selectedOptions.includes("VOICE_TO_TEXT");
-  // =======================================================================
 
   // 세션 키
   const myKeyRef = useRef(null);
@@ -128,7 +119,7 @@ export default function WebRtcSession() {
   const [role, setRole] = useState("");
   const [roomId, setRoomId] = useState("");
   const [iceServers, setIceServers] = useState([]);
-  
+
   // 종료 모달
   const [showEndModal, setShowEndModal] = useState(false);
 
@@ -150,11 +141,10 @@ export default function WebRtcSession() {
 
   // STT/REC
   const sttRef = useRef(null);
-  const [sttOn, setSttOn] = useState(false); // 의사: STT on/off, 환자: 녹음 on/off 플래그로 재사용
+  const [sttOn, setSttOn] = useState(false);
   const iceLoggedRef = useRef(false);
   const mediaRecRef = useRef({ rec: null, chunks: [] });
 
-  /* 메시지 중복 방지 */
   const normalize = (s = "") =>
     s.replace(/\s+/g, " ").replace(/[.?!]+$/, "").trim();
 
@@ -197,10 +187,11 @@ export default function WebRtcSession() {
     } catch (e) {
       void e;
     }
-    // 환자 & enableSign OFF이면 오디오 활성화
+    // ✅ 오디오 활성 조건 정정:
+    // 의사는 항상 오디오, 환자는 VOICE_TO_TEXT 선택시에만 오디오
     const wantAudio =
       currentRole === "ROLE_DOCTOR" ||
-      (currentRole === "ROLE_PATIENT" && !enableSign);
+      (currentRole === "ROLE_PATIENT" && enableVoice);
     const constraints = { video: true, audio: wantAudio };
     const s = await navigator.mediaDevices.getUserMedia(constraints);
     localStreamRef.current = s;
@@ -298,11 +289,9 @@ export default function WebRtcSession() {
 
   /* 마이크 토글: 의사/환자 분기 */
   const toggleMic = useCallback(async () => {
-    // 공통: 로컬 오디오 트랙 확보
     const ensureAudioTrack = async () => {
       let stream = localStreamRef.current;
       if (!stream || stream.getAudioTracks().length === 0) {
-        // 환자라도 enableSign OFF이면 오디오 열 수 있게 재시도
         await openCam(role);
         stream = localStreamRef.current;
       }
@@ -315,18 +304,13 @@ export default function WebRtcSession() {
       return track;
     };
 
-    // 이미 녹음/인식 중이면 종료
     if (sttOn) {
       try {
-        sttRef.current.stop();
-      } catch (e) {
-        void e;
-      }
+        sttRef.current?.stop?.();
+      } catch (e) { /* noop */ }
       try {
         mediaRecRef.current?.rec?.stop();
-      } catch (e) {
-        void e;
-      }
+      } catch (e) { /* noop */ }
       setSttOn(false);
       return;
     }
@@ -371,10 +355,15 @@ export default function WebRtcSession() {
           );
           if (audioBlob.size > 200) {
             try {
-              const res = await sendSpeechToDB(
-                roomId || reservationId,
-                audioBlob
-              );
+              // ✅ 역할별 업로드 엔드포인트 분기
+              const res =
+                role === "ROLE_DOCTOR"
+                  ? await sendSpeechToDB(roomId || reservationId, audioBlob)
+                  : await sendPatientSpeechToDB(
+                      roomId || reservationId,
+                      audioBlob
+                    );
+
               console.log("[API OK] 음성 업로드 성공");
               const finalText = res?.text ?? res?.results ?? "";
               if (finalText) {
@@ -395,7 +384,7 @@ export default function WebRtcSession() {
         }
       };
 
-      // 의사만 WebSpeech(실시간 자막) 활성화
+      // 의사만 실시간 브라우저 STT 자막
       if (role === "ROLE_DOCTOR") {
         if (!sttRef.current) {
           try {
@@ -404,11 +393,7 @@ export default function WebRtcSession() {
               interimResults: true,
             });
           } catch (err) {
-            console.warn(
-              "이 브라우저는 Web Speech API를 지원하지 않습니다.",
-              err
-            );
-            // WebSpeech 실패해도 녹음/업로드는 계속
+            console.warn("이 브라우저는 Web Speech API를 지원하지 않습니다.", err);
           }
         }
         try {
@@ -418,28 +403,23 @@ export default function WebRtcSession() {
               console.warn("STT 비동기 에러:", err);
               try {
                 mediaRecRef.current?.rec?.stop();
-              } catch (e) {
-                console.debug("[REC] stop on STT error 무시:", e);
-              }
+              } catch (e) { /* noop */ }
               setSttOn(false);
             },
             onEnd: () => {
               try {
                 mediaRecRef.current?.rec?.stop();
-              } catch (e) {
-                console.debug("[REC] stop on STT end 무시:", e);
-              }
+              } catch (e) { /* noop */ }
               setSttOn(false);
             },
           });
         } catch (e) {
-          // STT 시작 실패 시 녹음만 진행
           console.debug("[STT] start 실패(무시):", e);
         }
       }
 
       try {
-        rec.start(); // timeslice 없이 시작
+        rec.start();
       } catch (err) {
         alert(`녹음을 시작할 수 없습니다.\n오류: ${err.message}`);
         setSttOn(false);
@@ -533,14 +513,10 @@ export default function WebRtcSession() {
         const pc = peersRef.current.get("peer");
         if (!pc) return;
         if (body == null) {
-          pc.addIceCandidate(null).catch((e) => {
-            void e;
-          });
+          pc.addIceCandidate(null).catch((e) => { /* noop */ });
           return;
         }
-        pc.addIceCandidate(new RTCIceCandidate(body)).catch((e) => {
-          void e;
-        });
+        pc.addIceCandidate(new RTCIceCandidate(body)).catch((e) => { /* noop */ });
       },
       onLeave: () => endCall(),
     });
@@ -550,35 +526,15 @@ export default function WebRtcSession() {
   /* 종료 */
   const endCall = useCallback(async () => {
     if (sttOn) {
-      try {
-        mediaRecRef.current?.rec?.stop();
-      } catch (e) {
-        void e;
-      }
-      try {
-        sttRef.current?.stop?.();
-      } catch (e) {
-        void e;
-      }
+      try { mediaRecRef.current?.rec?.stop(); } catch (e) {}
+      try { sttRef.current?.stop?.(); } catch (e) {}
     }
 
-    try {
-      signalingRef.current?.sendLeave?.();
-    } catch (e) {
-      void e;
-    }
-    try {
-      signalingRef.current?.close?.();
-    } catch (e) {
-      void e;
-    }
+    try { signalingRef.current?.sendLeave?.(); } catch (e) {}
+    try { signalingRef.current?.close?.(); } catch (e) {}
     signalingRef.current = null;
 
-    try {
-      dataChannelRef.current?.close?.();
-    } catch (e) {
-      void e;
-    }
+    try { dataChannelRef.current?.close?.(); } catch (e) {}
     dataChannelRef.current = null;
 
     try {
@@ -588,34 +544,13 @@ export default function WebRtcSession() {
       console.debug("[RTC] peer close 무시:", e);
     }
 
-    try {
-      localStreamRef.current?.getTracks?.().forEach((t) => t.stop());
-    } catch (e) {
-      void e;
-    }
+    try { localStreamRef.current?.getTracks?.().forEach((t) => t.stop()); } catch (e) {}
 
-    const lv = localVideoRef.current,
-      rv = remoteVideoRef.current;
-    if (lv) {
-      try {
-        lv.pause();
-        lv.srcObject = null;
-      } catch (e) {
-        void e;
-      }
-    }
-    if (rv) {
-      try {
-        rv.pause();
-        rv.srcObject = null;
-      } catch (e) {
-        void e;
-      }
-    }
+    const lv = localVideoRef.current, rv = remoteVideoRef.current;
+    if (lv) { try { lv.pause(); lv.srcObject = null; } catch (e) {} }
+    if (rv) { try { rv.pause(); rv.srcObject = null; } catch (e) {} }
 
-    try {
-      if (roomId) await endSession(roomId);
-    } catch (err) {
+    try { if (roomId) await endSession(roomId); } catch (err) {
       console.error("[API FAIL] 세션 종료 실패:", err);
     }
 
@@ -640,22 +575,13 @@ export default function WebRtcSession() {
   }, [reservationId, roleHint]);
 
   /* ----- 종료 버튼/모달 핸들러 ----- */
-  const onClickEnd = useCallback(() => {
-    setShowEndModal(true);
-  }, []);
-  const onCancelEnd = useCallback(() => {
-    setShowEndModal(false);
-  }, []);
-
-  // 모달 확인(종료) — 채팅 백업 + endCall + 비대면 요약 페이지 이동
+  const onClickEnd = useCallback(() => setShowEndModal(true), []);
+  const onCancelEnd = useCallback(() => setShowEndModal(false), []);
   const onConfirmEnd = useCallback(async () => {
-    // 채팅 백업(옵션)
     try {
       const id = roomId || reservationId;
       if (id) sessionStorage.setItem(`chat:${id}`, JSON.stringify(messages));
-    } catch (e) {
-      void e; // storage 불가시 무시
-    }
+    } catch (e) { /* storage error ignore */ }
 
     await endCall();
     const id = roomId || reservationId;
@@ -691,8 +617,10 @@ export default function WebRtcSession() {
                 />
               ))}
             </div>
-            {/* ==================== 2. 수정된 부분: 마이크 버튼 렌더링 조건 변경 ==================== */}
-            {(role === "ROLE_DOCTOR" || (role === "ROLE_PATIENT" && enableVoice)) && (
+
+            {/* ✅ 마이크 버튼: 의사 or (환자 & VOICE_TO_TEXT) 에만 표시 */}
+            {(role === "ROLE_DOCTOR" ||
+              (role === "ROLE_PATIENT" && enableVoice)) && (
               <div className="chat__mic">
                 <button
                   className={`mic-btn ${sttOn ? "is-on" : ""}`}
@@ -703,10 +631,9 @@ export default function WebRtcSession() {
                 </button>
               </div>
             )}
-            {/* =================================================================================== */}
           </section>
 
-          {/* 우측 영상 */}
+          {/* 우측 영상 + 수어 UI */}
           <section className="tele__pane">
             <div className="tele__myvideo">
               <video

@@ -1,4 +1,12 @@
+// [코드 제목] WebRtcSession.jsx (ESLint 잔여 에러/경고 제거본)
 // 파일: src/pages/WebRtcSession.jsx
+//
+// ✅ 이번 수정 요약
+// - no-unused-vars: `_e` 파라미터 제거 → `.catch(() => {})` 등으로 변경 (라인 259, 554, 560 포함 전반)
+// - react-hooks/exhaustive-deps: `toggleMic`의 deps에 `pushOrReplace` 추가
+//
+// ⚠️ import 경로/서비스 함수는 프로젝트 구조에 맞춰 두었습니다.
+
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useParams, useLocation, useNavigate } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
@@ -9,7 +17,7 @@ import { createBrowserSTT } from "../services/stt";
 import {
   sendSignTextToDB,
   sendSpeechToDB,
-  sendPatientSpeechToDB,   // ✅ 환자 음성 업로드 추가
+  sendPatientSpeechToDB, // ✅ 환자 음성 업로드 추가
   endSession,
 } from "../services/telemedicine";
 import "./tele.css";
@@ -145,21 +153,27 @@ export default function WebRtcSession() {
   const iceLoggedRef = useRef(false);
   const mediaRecRef = useRef({ rec: null, chunks: [] });
 
-  const normalize = (s = "") =>
-    s.replace(/\s+/g, " ").replace(/[.?!]+$/, "").trim();
+  /* ----- 유틸: 문자열 정규화 ----- */
+  const normalize = useCallback((s = "") => {
+    return s.replace(/\s+/g, " ").replace(/[.?!]+$/, "").trim();
+  }, []);
 
-  const pushOrReplace = (source, text) => {
-    const t = normalize(text);
-    if (!t) return;
-    setMessages((prev) => {
-      const last = prev[prev.length - 1];
-      if (last && last.role === source) {
-        if (normalize(last.text) === t) return prev;
-        return [...prev.slice(0, -1), { ...last, text }];
-      }
-      return [...prev, { id: crypto.randomUUID(), role: source, text }];
-    });
-  };
+  /* ----- 채팅 push/replace (안정화) ----- */
+  const pushOrReplace = useCallback(
+    (source, text) => {
+      const t = normalize(text);
+      if (!t) return;
+      setMessages((prev) => {
+        const last = prev[prev.length - 1];
+        if (last && last.role === source) {
+          if (normalize(last.text) === t) return prev;
+          return [...prev.slice(0, -1), { ...last, text }];
+        }
+        return [...prev, { id: crypto.randomUUID(), role: source, text }];
+      });
+    },
+    [normalize]
+  );
 
   // 채팅 스크롤 유지
   useEffect(() => {
@@ -167,68 +181,94 @@ export default function WebRtcSession() {
     if (el) el.scrollTop = el.scrollHeight;
   }, [messages]);
 
-  /* 환자 자막 전송 */
-  const handleSendPatientCaption = async () => {
+  /* ---------- 캡션 전송: 데이터채널 브로드캐스트 + UI 반영 ---------- */
+  const sendCaption = useCallback(
+    (source, text) => {
+      const t = (text || "").trim();
+      if (!t) return;
+
+      // 로컬 UI 반영
+      pushOrReplace(source, t);
+
+      // 데이터채널 브로드캐스트
+      const ch = dataChannelRef.current;
+      const payload = { type: "caption", source, text: t, t: Date.now() };
+      try {
+        if (ch && ch.readyState === "open") ch.send(JSON.stringify(payload));
+      } catch {
+        // no-op
+      }
+    },
+    [pushOrReplace]
+  );
+
+  /* 환자 자막 전송(버튼/엔터) */
+  const handleSendPatientCaption = useCallback(async () => {
     const text = recognizedText.trim();
     if (!text) return;
+    // 1) P2P로 전파 + UI
     sendCaption("patient", text);
+    // 2) 서버 저장
     try {
       await sendSignTextToDB(roomId || reservationId, text);
-    } catch (e) {
-      void e;
+    } catch {
+      // 저장 실패는 무시 (네트워크 일시 오류 등)
     }
     setRecognizedText("");
-  };
+  }, [recognizedText, roomId, reservationId, sendCaption]);
 
-  /* 로컬 미디어 열기 */
-  async function openCam(currentRole) {
-    try {
-      localStreamRef.current?.getTracks?.().forEach((t) => t.stop());
-    } catch (e) {
-      void e;
-    }
-    // ✅ 오디오 활성 조건 정정:
-    // 의사는 항상 오디오, 환자는 VOICE_TO_TEXT 선택시에만 오디오
-    const wantAudio =
-      currentRole === "ROLE_DOCTOR" ||
-      (currentRole === "ROLE_PATIENT" && enableVoice);
-    const constraints = { video: true, audio: wantAudio };
-    const s = await navigator.mediaDevices.getUserMedia(constraints);
-    localStreamRef.current = s;
-
-    const lv = localVideoRef.current;
-    if (lv) {
-      lv.srcObject = s;
-      lv.muted = true;
+  /* 로컬 미디어 열기(오디오 조건 포함) — hook deps를 위해 useCallback으로 안정화 */
+  const openCam = useCallback(
+    async (currentRole) => {
       try {
-        await lv.play();
-      } catch (e) {
-        void e;
+        localStreamRef.current?.getTracks?.().forEach((t) => t.stop());
+      } catch {
+        // no-op
       }
-    }
-  }
+      // ✅ 오디오 활성 조건:
+      // 의사는 항상 오디오, 환자는 VOICE_TO_TEXT 선택시에만 오디오
+      const wantAudio =
+        currentRole === "ROLE_DOCTOR" ||
+        (currentRole === "ROLE_PATIENT" && enableVoice);
+      const constraints = { video: true, audio: wantAudio };
+      const s = await navigator.mediaDevices.getUserMedia(constraints);
+      localStreamRef.current = s;
+
+      const lv = localVideoRef.current;
+      if (lv) {
+        lv.srcObject = s;
+        lv.muted = true;
+        try {
+          await lv.play();
+        } catch {
+          // no-op
+        }
+      }
+    },
+    [enableVoice]
+  );
 
   function attachRemoteStream(stream) {
     const v = remoteVideoRef.current;
     if (!v) return;
     if (v.srcObject !== stream) v.srcObject = stream;
-    v.play?.().catch((e) => {
-      void e;
+    v.play?.().catch(() => {
+      // no-op
     });
   }
 
   function bindDataChannel(ch) {
     if (!ch) return;
     dataChannelRef.current = ch;
-    ch.onopen = () => console.log("[DC] open]");
-    ch.onclose = () => console.log("[DC] close]");
+    ch.onopen = () => console.log("[DC] open");
+    ch.onclose = () => console.log("[DC] close");
     ch.onerror = (err) => console.warn("[DC] error", err);
     ch.onmessage = (ev) => {
       let payload = ev.data;
       try {
         payload = JSON.parse(ev.data);
-      } catch (e) {
-        void e;
+      } catch {
+        // no-op
       }
       if (!payload || typeof payload !== "object") return;
       if (payload.type === "caption" && payload.text) {
@@ -236,21 +276,6 @@ export default function WebRtcSession() {
       }
     };
   }
-
-  const sendCaption = useCallback((source, text) => {
-    const t = (text || "").trim();
-    if (!t) return;
-
-    pushOrReplace(source, t);
-
-    const ch = dataChannelRef.current;
-    const payload = { type: "caption", source, text: t, t: Date.now() };
-    try {
-      if (ch && ch.readyState === "open") ch.send(JSON.stringify(payload));
-    } catch (e) {
-      void e;
-    }
-  }, []);
 
   async function startCall() {
     const api = signalingRef.current;
@@ -307,10 +332,14 @@ export default function WebRtcSession() {
     if (sttOn) {
       try {
         sttRef.current?.stop?.();
-      } catch (e) { /* noop */ }
+      } catch {
+        // no-op
+      }
       try {
         mediaRecRef.current?.rec?.stop();
-      } catch (e) { /* noop */ }
+      } catch {
+        // no-op
+      }
       setSttOn(false);
       return;
     }
@@ -332,10 +361,9 @@ export default function WebRtcSession() {
       }
       mediaRecRef.current = { rec, chunks: [] };
 
-      rec.ondataavailable = (e) => {
+      rec.ondataavailable = (ev) => {
         try {
-          if (e.data && e.data.size > 0)
-            mediaRecRef.current.chunks.push(e.data);
+          if (ev.data && ev.data.size > 0) mediaRecRef.current.chunks.push(ev.data);
         } catch (err) {
           console.warn("[REC] ondataavailable 에러:", err);
         }
@@ -403,18 +431,22 @@ export default function WebRtcSession() {
               console.warn("STT 비동기 에러:", err);
               try {
                 mediaRecRef.current?.rec?.stop();
-              } catch (e) { /* noop */ }
+              } catch {
+                // no-op
+              }
               setSttOn(false);
             },
             onEnd: () => {
               try {
                 mediaRecRef.current?.rec?.stop();
-              } catch (e) { /* noop */ }
+              } catch {
+                // no-op
+              }
               setSttOn(false);
             },
           });
-        } catch (e) {
-          console.debug("[STT] start 실패(무시):", e);
+        } catch {
+          console.debug("[STT] start 실패(무시)");
         }
       }
 
@@ -430,7 +462,7 @@ export default function WebRtcSession() {
       alert(e.message || "마이크를 사용할 수 없습니다.");
       setSttOn(false);
     }
-  }, [role, sttOn, sendCaption, roomId, reservationId]);
+  }, [role, sttOn, roomId, reservationId, openCam, sendCaption, pushOrReplace]); // ← deps 보강
 
   /* 참가 */
   async function joinAs(hint) {
@@ -513,10 +545,14 @@ export default function WebRtcSession() {
         const pc = peersRef.current.get("peer");
         if (!pc) return;
         if (body == null) {
-          pc.addIceCandidate(null).catch((e) => { /* noop */ });
+          pc.addIceCandidate(null).catch(() => {
+            // no-op
+          });
           return;
         }
-        pc.addIceCandidate(new RTCIceCandidate(body)).catch((e) => { /* noop */ });
+        pc.addIceCandidate(new RTCIceCandidate(body)).catch(() => {
+          // no-op
+        });
       },
       onLeave: () => endCall(),
     });
@@ -526,31 +562,72 @@ export default function WebRtcSession() {
   /* 종료 */
   const endCall = useCallback(async () => {
     if (sttOn) {
-      try { mediaRecRef.current?.rec?.stop(); } catch (e) {}
-      try { sttRef.current?.stop?.(); } catch (e) {}
+      try {
+        mediaRecRef.current?.rec?.stop();
+      } catch {
+        // no-op
+      }
+      try {
+        sttRef.current?.stop?.();
+      } catch {
+        // no-op
+      }
     }
 
-    try { signalingRef.current?.sendLeave?.(); } catch (e) {}
-    try { signalingRef.current?.close?.(); } catch (e) {}
+    try {
+      signalingRef.current?.sendLeave?.();
+    } catch {
+      // no-op
+    }
+    try {
+      signalingRef.current?.close?.();
+    } catch {
+      // no-op
+    }
     signalingRef.current = null;
 
-    try { dataChannelRef.current?.close?.(); } catch (e) {}
+    try {
+      dataChannelRef.current?.close?.();
+    } catch {
+      // no-op
+    }
     dataChannelRef.current = null;
 
     try {
       peersRef.current.forEach((pc) => pc.close());
       peersRef.current.clear();
-    } catch (e) {
-      console.debug("[RTC] peer close 무시:", e);
+    } catch (err) {
+      console.debug("[RTC] peer close 무시:", err);
     }
 
-    try { localStreamRef.current?.getTracks?.().forEach((t) => t.stop()); } catch (e) {}
+    try {
+      localStreamRef.current?.getTracks?.().forEach((t) => t.stop());
+    } catch {
+      // no-op
+    }
 
-    const lv = localVideoRef.current, rv = remoteVideoRef.current;
-    if (lv) { try { lv.pause(); lv.srcObject = null; } catch (e) {} }
-    if (rv) { try { rv.pause(); rv.srcObject = null; } catch (e) {} }
+    const lv = localVideoRef.current,
+      rv = remoteVideoRef.current;
+    if (lv) {
+      try {
+        lv.pause();
+        lv.srcObject = null;
+      } catch {
+        // no-op
+      }
+    }
+    if (rv) {
+      try {
+        rv.pause();
+        rv.srcObject = null;
+      } catch {
+        // no-op
+      }
+    }
 
-    try { if (roomId) await endSession(roomId); } catch (err) {
+    try {
+      if (roomId) await endSession(roomId);
+    } catch (err) {
       console.error("[API FAIL] 세션 종료 실패:", err);
     }
 
@@ -581,7 +658,9 @@ export default function WebRtcSession() {
     try {
       const id = roomId || reservationId;
       if (id) sessionStorage.setItem(`chat:${id}`, JSON.stringify(messages));
-    } catch (e) { /* storage error ignore */ }
+    } catch {
+      // storage error ignore
+    }
 
     await endCall();
     const id = roomId || reservationId;
@@ -731,7 +810,7 @@ export default function WebRtcSession() {
                   className="tele__end_modal__btn tele__end_modal__btn--outline"
                   onClick={onCancelEnd}
                 >
-                  취소
+                취소
                 </button>
                 <button
                   type="button"

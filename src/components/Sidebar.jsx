@@ -34,9 +34,7 @@ export default function Sidebar() {
         <NavLink
           to="/prepare"
           end
-          className={({ isActive }) =>
-            `sb__item${isActive ? " active" : ""}`
-          }
+          className={({ isActive }) => `sb__item${isActive ? " active" : ""}`}
         >
           <span className="sb__arrow" />
           대면 진료
@@ -65,8 +63,10 @@ export default function Sidebar() {
                     >
                       진료 예약
                     </NavLink>
+
+                    {/* ✅ 경로 수정: /tele/history → /telemed/history */}
                     <NavLink
-                      to="/tele/history"
+                      to="/telemed/history"
                       className={({ isActive }) =>
                         `sb__subitem${isActive ? " active" : ""}`
                       }
@@ -76,6 +76,7 @@ export default function Sidebar() {
                   </>
                 )}
 
+                {/* ❌ 의사 뷰: ‘진료 내역’ 메뉴 제거, 예약 관리만 노출 */}
                 {isDoctor && (
                   <>
                     <NavLink
@@ -85,14 +86,6 @@ export default function Sidebar() {
                       }
                     >
                       진료 예약 관리
-                    </NavLink>
-                    <NavLink
-                      to="/doctor/history"
-                      className={({ isActive }) =>
-                        `sb__subitem${isActive ? " active" : ""}`
-                      }
-                    >
-                      진료 내역
                     </NavLink>
                   </>
                 )}

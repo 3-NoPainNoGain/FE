@@ -101,6 +101,7 @@ export async function sendPatientSpeechToDB(roomId, audioBlob) {
 
 /**
  * [세션 종료]
+ * ✅ 추가: 다른 쪽이 먼저 끝내서 404/409가 오면 성공으로 간주하고 계속 진행
  */
 export async function endSession(roomId) {
   try {
@@ -108,6 +109,11 @@ export async function endSession(roomId) {
     console.log("[API OK] 세션 종료 성공:", data);
     return data;
   } catch (err) {
+    const status = err?.response?.status || err?.status;
+    if (status === 404 || status === 409) {
+      console.warn("[endSession] 이미 종료된 방(무시):", status);
+      return { alreadyEnded: true };
+    }
     console.error("[API FAIL] 세션 종료 실패:", err);
     throw err;
   }
@@ -115,16 +121,67 @@ export async function endSession(roomId) {
 
 /**
  * [비대면 진료 요약 조회]
+ * ✅ 변경: 짧은 재시도(지수 백오프) 추가
  */
-export async function getTelemedSummary(roomId) {
+export async function getTelemedSummary(
+  roomId,
+  { retries = 4, baseDelayMs = 700 } = {}
+) {
   if (!roomId) throw new Error("roomId is required");
+
+  // 재시도 대상 상태코드 (요약 생성/반영 지연, 과부하 등)
+  const RETRY = new Set([401, 404, 409, 425, 429, 500, 502, 503, 504]);
+
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const { data } = await api.get(
+        `/v2/telemed/${encodeURIComponent(roomId)}/summary`,
+        { headers: { Accept: "application/json" } }
+      );
+      // 서버가 { isSuccess, results } 형태면 results 우선 반환
+      return data?.results ?? data;
+    } catch (err) {
+      const status = err?.response?.status || err?.status;
+      const isLast = attempt === retries;
+      if (!RETRY.has(status) || isLast) {
+        console.error("[API FAIL] 요약 조회 실패:", err);
+        throw err;
+      }
+      const delay = baseDelayMs * (attempt + 1); // 0.7s → 1.4s → 2.1s …
+      await new Promise((r) => setTimeout(r, delay));
+    }
+  }
+}
+
+/* ✅ 신규 추가: 비대면 진료 내역 목록 조회 (GET /api/v2/telemed/history?page&size) */
+export async function getTelemedHistory({ page = 0, size = 10 } = {}) {
   try {
-    const { data } = await api.get(`/v2/telemed/${encodeURIComponent(roomId)}/summary`);
-    // 서버가 { isSuccess, results } 형태면 results 우선 반환
-    return data?.results ?? data;
+    const { data } = await api.get("/v2/telemed/history", { params: { page, size } });
+    const results = data?.results ?? data ?? {};
+    return {
+      items: results.items ?? [],
+      page: results.page ?? page,
+      size: results.size ?? size,
+      totalPages: results.totalPages ?? 1,
+      totalElements: results.totalElements ?? (results.items?.length ?? 0),
+      hasNext: !!results.hasNext,
+    };
   } catch (err) {
-    console.error("[API FAIL] 요약 조회 실패:", err);
+    console.error("[API FAIL] 비대면 진료 내역 조회 실패:", err);
     throw err;
   }
 }
 
+/* ✅ 신규 추가: 비대면 진료 히스토리 상세 조회 (GET /api/v2/telemed/history/{roomId}) */
+export async function getTelemedHistoryDetail(roomId) {
+  if (!roomId) throw new Error("roomId is required");
+  try {
+    const { data } = await api.get(
+      `/v2/telemed/history/${encodeURIComponent(roomId)}`
+    );
+    return data?.results ?? data;
+  } catch (err) {
+    console.error("[API FAIL] 히스토리 상세 조회 실패:", err);
+    throw err;
+  }
+}

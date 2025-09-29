@@ -1,9 +1,10 @@
-// [코드 제목] WebRtcSession.jsx (ESLint 잔여 에러/경고 제거본)
+// [코드 제목] WebRtcSession.jsx (환자 마이크: SIGN_TO_TEXT 없을 때만 표시/활성)
 // 파일: src/pages/WebRtcSession.jsx
 //
 // ✅ 이번 수정 요약
-// - no-unused-vars: `_e` 파라미터 제거 → `.catch(() => {})` 등으로 변경 (라인 259, 554, 560 포함 전반)
-// - react-hooks/exhaustive-deps: `toggleMic`의 deps에 `pushOrReplace` 추가
+// - 환자 마이크 버튼/오디오 트랙: SIGN_TO_TEXT가 없을 때만 표시/활성(!enableSign)
+// - enableVoice 제거(no-unused-vars 방지)
+// - react-hooks/exhaustive-deps: openCam deps → [enableSign]
 //
 // ⚠️ import 경로/서비스 함수는 프로젝트 구조에 맞춰 두었습니다.
 
@@ -109,7 +110,6 @@ export default function WebRtcSession() {
 
   // ✅ 옵션 플래그 (역할과 무관하게 선택값만 반영)
   const enableSign = selectedOptions.includes("SIGN_TO_TEXT");
-  const enableVoice = selectedOptions.includes("VOICE_TO_TEXT");
 
   // 세션 키
   const myKeyRef = useRef(null);
@@ -226,10 +226,10 @@ export default function WebRtcSession() {
         // no-op
       }
       // ✅ 오디오 활성 조건:
-      // 의사는 항상 오디오, 환자는 VOICE_TO_TEXT 선택시에만 오디오
+      // 의사는 항상 오디오, 환자는 SIGN_TO_TEXT가 없을 때만 오디오
       const wantAudio =
         currentRole === "ROLE_DOCTOR" ||
-        (currentRole === "ROLE_PATIENT" && enableVoice);
+        (currentRole === "ROLE_PATIENT" && !enableSign);
       const constraints = { video: true, audio: wantAudio };
       const s = await navigator.mediaDevices.getUserMedia(constraints);
       localStreamRef.current = s;
@@ -245,7 +245,7 @@ export default function WebRtcSession() {
         }
       }
     },
-    [enableVoice]
+    [enableSign]
   );
 
   function attachRemoteStream(stream) {
@@ -462,7 +462,7 @@ export default function WebRtcSession() {
       alert(e.message || "마이크를 사용할 수 없습니다.");
       setSttOn(false);
     }
-  }, [role, sttOn, roomId, reservationId, openCam, sendCaption, pushOrReplace]); // ← deps 보강
+  }, [role, sttOn, roomId, reservationId, openCam, sendCaption, pushOrReplace]); // deps OK
 
   /* 참가 */
   async function joinAs(hint) {
@@ -697,9 +697,9 @@ export default function WebRtcSession() {
               ))}
             </div>
 
-            {/* ✅ 마이크 버튼: 의사 or (환자 & VOICE_TO_TEXT) 에만 표시 */}
+            {/* ✅ 마이크 버튼: 의사는 항상 / 환자는 SIGN_TO_TEXT 없을 때만 */}
             {(role === "ROLE_DOCTOR" ||
-              (role === "ROLE_PATIENT" && enableVoice)) && (
+              (role === "ROLE_PATIENT" && !enableSign)) && (
               <div className="chat__mic">
                 <button
                   className={`mic-btn ${sttOn ? "is-on" : ""}`}
@@ -810,7 +810,7 @@ export default function WebRtcSession() {
                   className="tele__end_modal__btn tele__end_modal__btn--outline"
                   onClick={onCancelEnd}
                 >
-                취소
+                  취소
                 </button>
                 <button
                   type="button"

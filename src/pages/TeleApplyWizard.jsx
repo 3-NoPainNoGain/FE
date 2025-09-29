@@ -304,7 +304,7 @@ export default function TeleApplyWizard() {
             <div className="resv__form">
               <div className="form__row">
                 <label className="form__label">
-                  원하는 기능 선택 <span className="hint">택 1 (필수)</span>
+                  원하는 기능 선택 <span className="hint">택 1 (필수) *의사의 음성은 항상 텍스트화됩니다.</span>
                 </label>
 
                 <div className="feature__group" role="radiogroup" aria-label="기능 선택">
@@ -317,8 +317,8 @@ export default function TeleApplyWizard() {
                       onChange={() => setFeatureMode("voice")}
                     />
                     <div className="feature__text">
-                      <span className="feature__title">음성 → 텍스트</span>
-                      <p className="feature__desc">의사/환자 음성을 자막으로 보여줍니다.</p>
+                      <span className="feature__title">음성으로 진료받기</span>
+                      <p className="feature__desc">환자가 음성을 이용해 진료받습니다.</p>
                     </div>
                   </label>
 
@@ -331,8 +331,8 @@ export default function TeleApplyWizard() {
                       onChange={() => setFeatureMode("voice+sign")}
                     />
                     <div className="feature__text">
-                      <span className="feature__title">음성 → 텍스트 + 수어 → 텍스트</span>
-                      <p className="feature__desc">음성 자막에 수어 인식 텍스트를 추가로 제공합니다.</p>
+                      <span className="feature__title">수어로 진료받기</span>
+                      <p className="feature__desc">환자가 수어를 이용해 진료받습니다.</p>
                     </div>
                   </label>
                 </div>

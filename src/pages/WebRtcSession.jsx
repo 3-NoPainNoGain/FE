@@ -210,7 +210,9 @@ export default function WebRtcSession() {
     sendCaption("patient", text);
     // 2) 서버 저장
     try {
-      await sendSignTextToDB(roomId || reservationId, text);
+const id = roomId;
+if (!id) return; // 아직 roomId 준비 전이면 전송 안 함 (또는 alert)
+await sendSignTextToDB(id, text);
     } catch {
       // 저장 실패는 무시 (네트워크 일시 오류 등)
     }
@@ -384,13 +386,16 @@ export default function WebRtcSession() {
           if (audioBlob.size > 200) {
             try {
               // ✅ 역할별 업로드 엔드포인트 분기
-              const res =
-                role === "ROLE_DOCTOR"
-                  ? await sendSpeechToDB(roomId || reservationId, audioBlob)
-                  : await sendPatientSpeechToDB(
-                      roomId || reservationId,
-                      audioBlob
-                    );
+const id = roomId;
+if (!id) {
+  console.warn("[upload] roomId가 아직 없습니다. 업로드 생략");
+  return;
+}
+const res =
+  role === "ROLE_DOCTOR"
+    ? await sendSpeechToDB(id, audioBlob)
+    : await sendPatientSpeechToDB(id, audioBlob);
+
 
               console.log("[API OK] 음성 업로드 성공");
               const finalText = res?.text ?? res?.results ?? "";

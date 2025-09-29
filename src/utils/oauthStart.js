@@ -11,7 +11,7 @@ export function startOAuth(provider) {
 
   if (provider === "kakao") {
     const clientId = process.env.REACT_APP_KAKAO_CLIENT_ID || "";
-    const redirectUri = "http://localhost:3000/oauth/kakao/callback";
+    const redirectUri = process.env.REACT_APP_KAKAO_REDIRECT_URI || `${window.location.origin}/oauth/kakao/callback`;
     if (!clientId) {
       alert("KAKAO CLIENT_ID가 비어 있습니다. .env를 확인하세요.");
       return;
@@ -28,7 +28,7 @@ export function startOAuth(provider) {
 
   if (provider === "google") {
     const clientId = process.env.REACT_APP_GOOGLE_CLIENT_ID || "";
-    const redirectUri = "http://localhost:3000/oauth/google/callback";
+    const redirectUri = process.env.REACT_APP_GOOGLE_REDIRECT_URI || `${window.location.origin}/oauth/google/callback`;
     if (!clientId) {
       alert("GOOGLE CLIENT_ID가 비어 있습니다. .env를 확인하세요.");
       return;

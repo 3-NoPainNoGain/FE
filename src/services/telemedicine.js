@@ -63,7 +63,7 @@ export async function sendSpeechToDB(roomId, audioBlob) {
 
 /**
  * [환자 → 음성 업로드]
- * 백엔드 스펙: POST /api/v2/telemed/{roomId}/speech-patient  (필드명: file)
+ * 백엔드 스펙: POST /api/v2/telemed/{roomId}/speech-patient-normal  (필드명: file)
  */
 export async function sendPatientSpeechToDB(roomId, audioBlob) {
   try {
@@ -86,7 +86,7 @@ export async function sendPatientSpeechToDB(roomId, audioBlob) {
     formData.append("file", namedFile);
 
     const { data } = await api.post(
-      `/v2/telemed/${encodeURIComponent(roomId)}/speech-patient`,
+      `/v2/telemed/${encodeURIComponent(roomId)}/speech-patient-normal`,
       formData,
       { headers: { "Content-Type": "multipart/form-data" } }
     );

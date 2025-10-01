@@ -1,5 +1,3 @@
-// 파일: src/services/telemedicine.js
-
 import { api } from "../lib/api";
 
 /* -----------------------------------------------------------
@@ -15,7 +13,6 @@ function toAudioFile(blobOrFile, fallbackType = "audio/webm") {
     return new File([blobOrFile], name, { type });
   } catch (err) {
     console.error("[toAudioFile] File 생성 실패, Blob 그대로 사용:", err);
-    // 일부 환경(File 생성자 미지원)에서는 Blob 그대로 반환 → 서버에서 처리
     return blobOrFile;
   }
 }
@@ -28,7 +25,10 @@ export async function sendSignTextToDB(roomId, text) {
   if (!payload.message) return { skipped: true };
 
   try {
-    const { data } = await api.post(`/v2/telemed/${encodeURIComponent(roomId)}/sign`, payload);
+    const { data } = await api.post(
+      `/v2/telemed/${encodeURIComponent(roomId)}/sign`,
+      payload
+    );
     console.log(`[API OK] 수어 텍스트 저장 성공: "${payload.message}"`);
     return data;
   } catch (err) {
@@ -39,7 +39,6 @@ export async function sendSignTextToDB(roomId, text) {
 
 /**
  * [의사 → 음성 업로드]
- * 백엔드 스펙: POST /api/v2/telemed/{roomId}/speech-doctor  (필드명: file)
  */
 export async function sendSpeechToDB(roomId, audioBlob) {
   try {
@@ -54,7 +53,7 @@ export async function sendSpeechToDB(roomId, audioBlob) {
     );
 
     console.log("[API OK] 의사 음성 업로드 & STT 변환 성공:", data);
-    return data; // { text: "..." }
+    return data;
   } catch (err) {
     console.error("[API FAIL] 의사 음성 업로드 실패:", err);
     throw err;
@@ -62,27 +61,30 @@ export async function sendSpeechToDB(roomId, audioBlob) {
 }
 
 /**
- * [환자 → 음성 업로드]
- * 백엔드 스펙: POST /api/v2/telemed/{roomId}/speech-patient-normal  (필드명: file)
+ * [환자 → 음성 업로드(즉시 저장)]
  */
 export async function sendPatientSpeechToDB(roomId, audioBlob) {
   try {
-    const formData = new FormData();
     const audioFile = toAudioFile(audioBlob, "audio/webm");
 
     let namedFile = audioFile;
     try {
-      // 파일명 프리픽스만 바꿔서 업로드 (환경에 따라 File 재생성 실패 가능)
-      if (!(audioFile instanceof File) || !audioFile.name?.startsWith?.("patient_")) {
-        namedFile = new File([audioFile], `patient_${audioFile.name || "speech.webm"}`, {
-          type: audioFile.type || "audio/webm",
-        });
+      if (
+        !(audioFile instanceof File) ||
+        !audioFile.name?.startsWith?.("patient_")
+      ) {
+        namedFile = new File(
+          [audioFile],
+          `patient_${audioFile.name || "speech.webm"}`,
+          { type: audioFile.type || "audio/webm" }
+        );
       }
     } catch (err) {
-      console.warn("[sendPatientSpeechToDB] 파일명 재설정 실패, 원본 그대로 사용:", err);
+      console.warn("[sendPatientSpeechToDB] 파일명 재설정 실패:", err);
       namedFile = audioFile;
     }
 
+    const formData = new FormData();
     formData.append("file", namedFile);
 
     const { data } = await api.post(
@@ -99,13 +101,82 @@ export async function sendPatientSpeechToDB(roomId, audioBlob) {
   }
 }
 
+/* ============================================================
+ * ✅ 새로 추가: 2단계 분리 플로우 지원 (STT → 후보)
+ * ========================================================== */
+
+/**
+ * [1단계] 환자 음성을 STT만 수행
+ */
+export async function transcribePatientSpeech(roomId, audioBlob) {
+  const form = new FormData();
+  form.append("file", toAudioFile(audioBlob, "audio/webm"));
+
+  const { data } = await api.post(
+    `/v2/telemed/${encodeURIComponent(roomId)}/speech-patient`,
+    form,
+    { headers: { "Content-Type": "multipart/form-data" } }
+  );
+
+  const res = data?.results ?? data ?? {};
+  const text = typeof res === "string" ? res : (res?.text ?? "");
+  console.log("[API OK] STT only:", { text });
+
+  return { text };
+}
+
+/**
+ * [2단계] 텍스트로 GPT 후보 생성
+ * ✅ BE 스펙에 맞게 /speech-text 로 수정
+ */
+export async function generatePatientSpeechCandidates(roomId, payload) {
+  const body = {
+    recordedText: String(payload?.text || "").trim(),
+    max: payload?.max ?? 3,
+  };
+  if (!body.recordedText) return { candidates: [] };
+
+  const { data } = await api.post(
+    `/v2/telemed/${encodeURIComponent(roomId)}/speech-text`,
+    body,
+    { headers: { "Content-Type": "application/json" } }
+  );
+
+  const res = data?.results ?? data ?? {};
+  const candidates = res?.candidates ?? [];
+  console.log("[API OK] GPT candidates:", candidates);
+
+  return { candidates: Array.isArray(candidates) ? candidates : [] };
+}
+
+/**
+ * [환자 → 후보 중 선택 확정 전송]
+ */
+export async function sendPatientSelectedSpeechToDB(roomId, selectedText) {
+  const payload = { selectedText: String(selectedText || "").trim() };
+  if (!payload.selectedText) throw new Error("선택된 문장이 없습니다.");
+  try {
+    const { data } = await api.post(
+      `/v2/telemed/${encodeURIComponent(roomId)}/speech-patient/send`,
+      payload,
+      { headers: { "Content-Type": "application/json" } }
+    );
+    console.log("[API OK] 환자 선택 문장 전송 성공:", data);
+    return data;
+  } catch (err) {
+    console.error("[API FAIL] 환자 선택 문장 전송 실패:", err);
+    throw err;
+  }
+}
+
 /**
  * [세션 종료]
- * ✅ 추가: 다른 쪽이 먼저 끝내서 404/409가 오면 성공으로 간주하고 계속 진행
  */
 export async function endSession(roomId) {
   try {
-    const { data } = await api.post(`/v2/telemed/${encodeURIComponent(roomId)}/end`);
+    const { data } = await api.post(
+      `/v2/telemed/${encodeURIComponent(roomId)}/end`
+    );
     console.log("[API OK] 세션 종료 성공:", data);
     return data;
   } catch (err) {
@@ -119,17 +190,13 @@ export async function endSession(roomId) {
   }
 }
 
-/**
- * [비대면 진료 요약 조회]
- * ✅ 변경: 짧은 재시도(지수 백오프) 추가
- */
+/* 요약/히스토리 */
 export async function getTelemedSummary(
   roomId,
   { retries = 4, baseDelayMs = 700 } = {}
 ) {
   if (!roomId) throw new Error("roomId is required");
 
-  // 재시도 대상 상태코드 (요약 생성/반영 지연, 과부하 등)
   const RETRY = new Set([401, 404, 409, 425, 429, 500, 502, 503, 504]);
 
   for (let attempt = 0; attempt <= retries; attempt++) {
@@ -138,7 +205,6 @@ export async function getTelemedSummary(
         `/v2/telemed/${encodeURIComponent(roomId)}/summary`,
         { headers: { Accept: "application/json" } }
       );
-      // 서버가 { isSuccess, results } 형태면 results 우선 반환
       return data?.results ?? data;
     } catch (err) {
       const status = err?.response?.status || err?.status;
@@ -147,16 +213,17 @@ export async function getTelemedSummary(
         console.error("[API FAIL] 요약 조회 실패:", err);
         throw err;
       }
-      const delay = baseDelayMs * (attempt + 1); // 0.7s → 1.4s → 2.1s …
+      const delay = baseDelayMs * (attempt + 1);
       await new Promise((r) => setTimeout(r, delay));
     }
   }
 }
 
-/* ✅ 신규 추가: 비대면 진료 내역 목록 조회 (GET /api/v2/telemed/history?page&size) */
 export async function getTelemedHistory({ page = 0, size = 10 } = {}) {
   try {
-    const { data } = await api.get("/v2/telemed/history", { params: { page, size } });
+    const { data } = await api.get("/v2/telemed/history", {
+      params: { page, size },
+    });
     const results = data?.results ?? data ?? {};
     return {
       items: results.items ?? [],
@@ -172,7 +239,6 @@ export async function getTelemedHistory({ page = 0, size = 10 } = {}) {
   }
 }
 
-/* ✅ 신규 추가: 비대면 진료 히스토리 상세 조회 (GET /api/v2/telemed/history/{roomId}) */
 export async function getTelemedHistoryDetail(roomId) {
   if (!roomId) throw new Error("roomId is required");
   try {

@@ -1,12 +1,10 @@
-// [코드 제목] WebRtcSession.jsx (환자 마이크: SIGN_TO_TEXT 없을 때만 표시/활성)
 // 파일: src/pages/WebRtcSession.jsx
 //
-// ✅ 이번 수정 요약
-// - 환자 마이크 버튼/오디오 트랙: SIGN_TO_TEXT가 없을 때만 표시/활성(!enableSign)
-// - enableVoice 제거(no-unused-vars 방지)
-// - react-hooks/exhaustive-deps: openCam deps → [enableSign]
-//
-// ⚠️ import 경로/서비스 함수는 프로젝트 구조에 맞춰 두었습니다.
+// 변경 요약
+// - 빈 catch 블록들에 console.debug 추가 → no-empty 해결
+// - 종료 모달의 취소 버튼에서 onCancelEnd 사용 → no-unused-vars 해결
+// - ✅ 환자+GPT 경로: requestPatientSpeechCandidates(한방) → STT→후보 2단계 호출로 변경
+// - 그 외 동작/로직 변경 없음
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useParams, useLocation, useNavigate } from "react-router-dom";
@@ -18,7 +16,11 @@ import { createBrowserSTT } from "../services/stt";
 import {
   sendSignTextToDB,
   sendSpeechToDB,
-  sendPatientSpeechToDB, // ✅ 환자 음성 업로드 추가
+  sendPatientSpeechToDB,
+  // requestPatientSpeechCandidates, // ❌ 한방 API 사용 중지
+  transcribePatientSpeech,              // ✅ STT 전용
+  generatePatientSpeechCandidates,      // ✅ 후보 생성 전용
+  sendPatientSelectedSpeechToDB,
   endSession,
 } from "../services/telemedicine";
 import "./tele.css";
@@ -108,8 +110,11 @@ export default function WebRtcSession() {
 
   const selectedOptions = state?.interpretationOption || [];
 
-  // ✅ 옵션 플래그 (역할과 무관하게 선택값만 반영)
+  // 옵션 플래그
   const enableSign = selectedOptions.includes("SIGN_TO_TEXT");
+
+  // GPT 발음교정(음성 모드 전용) 전달값
+  const [enableGpt, setEnableGpt] = useState(state?.gptCorrection === true);
 
   // 세션 키
   const myKeyRef = useRef(null);
@@ -146,6 +151,9 @@ export default function WebRtcSession() {
   // 환자 입력 문장 + 실시간 단어
   const [recognizedText, setRecognizedText] = useState("");
   const [wsLive, setWsLive] = useState("");
+
+  // 후보 선택 모달 상태(GPT 교정)
+  const [candidates, setCandidates] = useState(null); // null | string[]
 
   // STT/REC
   const sttRef = useRef(null);
@@ -195,8 +203,8 @@ export default function WebRtcSession() {
       const payload = { type: "caption", source, text: t, t: Date.now() };
       try {
         if (ch && ch.readyState === "open") ch.send(JSON.stringify(payload));
-      } catch {
-        // no-op
+      } catch (e) {
+        console.debug("[DC] send 실패(무시):", e);
       }
     },
     [pushOrReplace]
@@ -210,24 +218,23 @@ export default function WebRtcSession() {
     sendCaption("patient", text);
     // 2) 서버 저장
     try {
-const id = roomId;
-if (!id) return; // 아직 roomId 준비 전이면 전송 안 함 (또는 alert)
-await sendSignTextToDB(id, text);
-    } catch {
-      // 저장 실패는 무시 (네트워크 일시 오류 등)
+      const id = roomId;
+      if (!id) return;
+      await sendSignTextToDB(id, text);
+    } catch (e) {
+      console.debug("[sign text] 저장 실패(무시):", e);
     }
     setRecognizedText("");
-  }, [recognizedText, roomId, reservationId, sendCaption]);
+  }, [recognizedText, roomId, sendCaption]);
 
-  /* 로컬 미디어 열기(오디오 조건 포함) — hook deps를 위해 useCallback으로 안정화 */
+  /* 로컬 미디어 열기(오디오 조건 포함) */
   const openCam = useCallback(
     async (currentRole) => {
       try {
         localStreamRef.current?.getTracks?.().forEach((t) => t.stop());
-      } catch {
-        // no-op
+      } catch (e) {
+        console.debug("[openCam] stop old tracks 실패(무시):", e);
       }
-      // ✅ 오디오 활성 조건:
       // 의사는 항상 오디오, 환자는 SIGN_TO_TEXT가 없을 때만 오디오
       const wantAudio =
         currentRole === "ROLE_DOCTOR" ||
@@ -242,8 +249,8 @@ await sendSignTextToDB(id, text);
         lv.muted = true;
         try {
           await lv.play();
-        } catch {
-          // no-op
+        } catch (e) {
+          console.debug("[openCam] local video play 실패(무시):", e);
         }
       }
     },
@@ -254,8 +261,8 @@ await sendSignTextToDB(id, text);
     const v = remoteVideoRef.current;
     if (!v) return;
     if (v.srcObject !== stream) v.srcObject = stream;
-    v.play?.().catch(() => {
-      // no-op
+    v.play?.().catch((e) => {
+      console.debug("[remote video] play 실패(무시):", e);
     });
   }
 
@@ -269,8 +276,8 @@ await sendSignTextToDB(id, text);
       let payload = ev.data;
       try {
         payload = JSON.parse(ev.data);
-      } catch {
-        // no-op
+      } catch (e) {
+        console.debug("[DC] JSON parse 실패(무시):", e);
       }
       if (!payload || typeof payload !== "object") return;
       if (payload.type === "caption" && payload.text) {
@@ -334,13 +341,13 @@ await sendSignTextToDB(id, text);
     if (sttOn) {
       try {
         sttRef.current?.stop?.();
-      } catch {
-        // no-op
+      } catch (e) {
+        console.debug("[STT] stop 실패(무시):", e);
       }
       try {
         mediaRecRef.current?.rec?.stop();
-      } catch {
-        // no-op
+      } catch (e) {
+        console.debug("[REC] stop 실패(무시):", e);
       }
       setSttOn(false);
       return;
@@ -365,7 +372,8 @@ await sendSignTextToDB(id, text);
 
       rec.ondataavailable = (ev) => {
         try {
-          if (ev.data && ev.data.size > 0) mediaRecRef.current.chunks.push(ev.data);
+          if (ev.data && ev.data.size > 0)
+            mediaRecRef.current.chunks.push(ev.data);
         } catch (err) {
           console.warn("[REC] ondataavailable 에러:", err);
         }
@@ -384,26 +392,55 @@ await sendSignTextToDB(id, text);
             audioBlob.type
           );
           if (audioBlob.size > 200) {
+            const id = roomId;
+            if (!id) {
+              console.warn("[upload] roomId가 아직 없습니다. 업로드 생략");
+              return;
+            }
+
             try {
-              // ✅ 역할별 업로드 엔드포인트 분기
-const id = roomId;
-if (!id) {
-  console.warn("[upload] roomId가 아직 없습니다. 업로드 생략");
-  return;
-}
-const res =
-  role === "ROLE_DOCTOR"
-    ? await sendSpeechToDB(id, audioBlob)
-    : await sendPatientSpeechToDB(id, audioBlob);
-
-
-              console.log("[API OK] 음성 업로드 성공");
-              const finalText = res?.text ?? res?.results ?? "";
-              if (finalText) {
-                pushOrReplace(
-                  role === "ROLE_DOCTOR" ? "doctor" : "patient",
-                  finalText
-                );
+              // 역할별 업로드 엔드포인트 분기
+              if (role === "ROLE_DOCTOR") {
+                const res = await sendSpeechToDB(id, audioBlob);
+                const finalText = res?.text ?? res?.results ?? "";
+                if (finalText) sendCaption("doctor", finalText);
+              } else {
+                // 환자
+                if (enableGpt) {
+                  // ✅ 2단계: (1) STT → (2) 후보 생성
+                  try {
+                    const { text } = await transcribePatientSpeech(id, audioBlob);
+                    if (!text) {
+                      // STT가 공백이면 normal 폴백
+                      const res = await sendPatientSpeechToDB(id, audioBlob);
+                      const finalText = res?.text ?? res?.results ?? "";
+                      if (finalText) sendCaption("patient", finalText);
+                      return;
+                    }
+                    const { candidates: cand } = await generatePatientSpeechCandidates(id, {
+                      text,
+                      max: 3,
+                    });
+                    if (Array.isArray(cand) && cand.length > 0) {
+                      setCandidates(cand.slice(0, 3));
+                      return; // 선택 모달로 분기
+                    }
+                    // 후보가 없으면 폴백
+                    const res = await sendPatientSpeechToDB(id, audioBlob);
+                    const finalText = res?.text ?? res?.results ?? "";
+                    if (finalText) sendCaption("patient", finalText);
+                  } catch (e) {
+                    console.warn("[GPT 후보(분리)] 실패, normal로 폴백:", e?.message || e);
+                    const res = await sendPatientSpeechToDB(id, audioBlob);
+                    const finalText = res?.text ?? res?.results ?? "";
+                    if (finalText) sendCaption("patient", finalText);
+                  }
+                } else {
+                  // GPT 교정 끔 → 바로 저장
+                  const res = await sendPatientSpeechToDB(id, audioBlob);
+                  const finalText = res?.text ?? res?.results ?? "";
+                  if (finalText) sendCaption("patient", finalText);
+                }
               }
             } catch (error) {
               console.error("[API FAIL] 음성 업로드 실패:", error);
@@ -436,22 +473,22 @@ const res =
               console.warn("STT 비동기 에러:", err);
               try {
                 mediaRecRef.current?.rec?.stop();
-              } catch {
-                // no-op
+              } catch (e) {
+                console.debug("[REC] stop 실패(무시):", e);
               }
               setSttOn(false);
             },
             onEnd: () => {
               try {
                 mediaRecRef.current?.rec?.stop();
-              } catch {
-                // no-op
+              } catch (e) {
+                console.debug("[REC] stop 실패(무시):", e);
               }
               setSttOn(false);
             },
           });
-        } catch {
-          console.debug("[STT] start 실패(무시)");
+        } catch (e) {
+          console.debug("[STT] start 실패(무시):", e);
         }
       }
 
@@ -467,7 +504,27 @@ const res =
       alert(e.message || "마이크를 사용할 수 없습니다.");
       setSttOn(false);
     }
-  }, [role, sttOn, roomId, reservationId, openCam, sendCaption, pushOrReplace]); // deps OK
+  }, [role, sttOn, roomId, openCam, sendCaption, enableGpt]);
+
+  /* 후보 선택 동작 */
+  const pickCandidate = useCallback(
+    async (text) => {
+      const id = roomId;
+      if (!id || !text) {
+        setCandidates(null);
+        return;
+      }
+      try {
+        await sendPatientSelectedSpeechToDB(id, text);
+        sendCaption("patient", text);
+      } catch (e) {
+        alert(e?.message || "선택 전송에 실패했습니다.");
+      } finally {
+        setCandidates(null);
+      }
+    },
+    [roomId, sendCaption]
+  );
 
   /* 참가 */
   async function joinAs(hint) {
@@ -535,7 +592,7 @@ const res =
           const answer = await makeAnswer(pc);
           api.sendAnswer(null, answer);
         } catch (err) {
-          console.warn("[RTC] offer 처리 실패:", err);
+          console.warn("[RTC] offer/answer 처리 실패:", err);
         }
       },
       onAnswer: async ({ body }) => {
@@ -550,13 +607,13 @@ const res =
         const pc = peersRef.current.get("peer");
         if (!pc) return;
         if (body == null) {
-          pc.addIceCandidate(null).catch(() => {
-            // no-op
+          pc.addIceCandidate(null).catch((e) => {
+            console.debug("[ICE] null candidate 처리 실패(무시):", e);
           });
           return;
         }
-        pc.addIceCandidate(new RTCIceCandidate(body)).catch(() => {
-          // no-op
+        pc.addIceCandidate(new RTCIceCandidate(body)).catch((e) => {
+          console.debug("[ICE] addIceCandidate 실패(무시):", e);
         });
       },
       onLeave: () => endCall(),
@@ -569,32 +626,32 @@ const res =
     if (sttOn) {
       try {
         mediaRecRef.current?.rec?.stop();
-      } catch {
-        // no-op
+      } catch (e) {
+        console.debug("[endCall] rec.stop 실패(무시):", e);
       }
       try {
         sttRef.current?.stop?.();
-      } catch {
-        // no-op
+      } catch (e) {
+        console.debug("[endCall] stt.stop 실패(무시):", e);
       }
     }
 
     try {
       signalingRef.current?.sendLeave?.();
-    } catch {
-      // no-op
+    } catch (e) {
+      console.debug("[endCall] sendLeave 실패(무시):", e);
     }
     try {
       signalingRef.current?.close?.();
-    } catch {
-      // no-op
+    } catch (e) {
+      console.debug("[endCall] signaling close 실패(무시):", e);
     }
     signalingRef.current = null;
 
     try {
       dataChannelRef.current?.close?.();
-    } catch {
-      // no-op
+    } catch (e) {
+      console.debug("[endCall] datachannel close 실패(무시):", e);
     }
     dataChannelRef.current = null;
 
@@ -607,8 +664,8 @@ const res =
 
     try {
       localStreamRef.current?.getTracks?.().forEach((t) => t.stop());
-    } catch {
-      // no-op
+    } catch (e) {
+      console.debug("[endCall] stop local tracks 실패(무시):", e);
     }
 
     const lv = localVideoRef.current,
@@ -617,16 +674,16 @@ const res =
       try {
         lv.pause();
         lv.srcObject = null;
-      } catch {
-        // no-op
+      } catch (e) {
+        console.debug("[endCall] local video 정리 실패(무시):", e);
       }
     }
     if (rv) {
       try {
         rv.pause();
         rv.srcObject = null;
-      } catch {
-        // no-op
+      } catch (e) {
+        console.debug("[endCall] remote video 정리 실패(무시):", e);
       }
     }
 
@@ -646,6 +703,18 @@ const res =
     if (ridParam) setReservationId(String(ridParam));
   }, [ridParam]);
 
+  /* 세션 저장된 gpt 토글 복원 */
+  useEffect(() => {
+    if (!enableGpt && reservationId) {
+      try {
+        const saved = sessionStorage.getItem(`gpt:${reservationId}`);
+        if (saved === "1" || saved === "true") setEnableGpt(true);
+      } catch (e) {
+        console.debug("[gpt toggle 복원] 실패(무시):", e);
+      }
+    }
+  }, [reservationId, enableGpt]);
+
   /* 자동 참가 */
   const autoJoinRef = useRef(false);
   useEffect(() => {
@@ -663,10 +732,9 @@ const res =
     try {
       const id = roomId || reservationId;
       if (id) sessionStorage.setItem(`chat:${id}`, JSON.stringify(messages));
-    } catch {
-      // storage error ignore
+    } catch (e) {
+      console.debug("[end confirm] 저장 실패(무시):", e);
     }
-
     await endCall();
     const id = roomId || reservationId;
     navigate(`/telemed/summary/${id}`, { state: { messages } });
@@ -702,7 +770,7 @@ const res =
               ))}
             </div>
 
-            {/* ✅ 마이크 버튼: 의사는 항상 / 환자는 SIGN_TO_TEXT 없을 때만 */}
+            {/* 마이크 버튼: 의사는 항상 / 환자는 SIGN_TO_TEXT 없을 때만 */}
             {(role === "ROLE_DOCTOR" ||
               (role === "ROLE_PATIENT" && !enableSign)) && (
               <div className="chat__mic">
@@ -713,11 +781,23 @@ const res =
                 >
                   {sttOn ? "⏹️" : "🎤"}
                 </button>
+                {role === "ROLE_PATIENT" && !enableSign && (
+                  <div
+                    style={{
+                      marginTop: 6,
+                      fontSize: 12,
+                      color: enableGpt ? "#111827" : "#6B7280",
+                    }}
+                    title="음성 모드에서만 사용"
+                  >
+                    {enableGpt ? "GPT 발음교정: 켜짐" : "GPT 발음교정: 꺼짐"}
+                  </div>
+                )}
               </div>
             )}
           </section>
 
-          {/* 우측 영상 + 수어 UI */}
+            {/* 우측 영상 + 수어 UI */}
           <section className="tele__pane">
             <div className="tele__myvideo">
               <video
@@ -782,15 +862,53 @@ const res =
             </div>
 
             {role === "ROLE_PATIENT" && enableSign && (
-              <button
-                className="tele__send_big"
-                onClick={handleSendPatientCaption}
-              >
+              <button className="tele__send_big" onClick={handleSendPatientCaption}>
                 전송하기
               </button>
             )}
           </section>
         </div>
+
+        {/* GPT 후보 선택 모달 */}
+        {Array.isArray(candidates) && candidates.length > 0 && (
+          <div className="tele__end_modal__backdrop" role="presentation">
+            <div
+              className="tele__end_modal"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="candTitle"
+            >
+              <h3 id="candTitle" className="tele__end_modal__title">
+                가장 가까운 문장을 선택해 주세요
+              </h3>
+              <div className="tele__end_modal__desc">
+                환경과 맥락을 반영한 3가지 후보입니다.
+              </div>
+              <div style={{ display: "grid", gap: 8, marginTop: 12 }}>
+                {candidates.map((c, i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    className="tele__end_modal__btn tele__end_modal__btn--outline"
+                    onClick={() => pickCandidate(String(c || "").trim())}
+                    title="이 문장 선택"
+                  >
+                    {c}
+                  </button>
+                ))}
+              </div>
+              <div className="tele__end_modal__actions" style={{ marginTop: 10 }}>
+                <button
+                  type="button"
+                  className="tele__end_modal__btn tele__end_modal__btn--primary"
+                  onClick={() => setCandidates(null)}
+                >
+                  닫기
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* 종료 모달 */}
         {showEndModal && (

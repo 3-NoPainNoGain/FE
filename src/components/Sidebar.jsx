@@ -23,8 +23,8 @@ export default function Sidebar() {
         onClick={() => nav("/")}
         onKeyDown={(e) => e.key === "Enter" && nav("/")}
       >
-        <img src={logo} alt="Handoc" className="sb__logo" />
-        <div className="sb__brand">Handoc</div>
+        <img src={logo} alt="Handdoc" className="sb__logo" />
+        <div className="sb__brand">Handdoc</div>
       </div>
 
       <hr className="sb__divider" />

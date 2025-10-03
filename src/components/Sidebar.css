@@ -128,11 +128,10 @@
   }
 }
 
-/* 1차 메뉴 (대면 진료, 비대면 진료) */
 .sb__item {
   color: #000;
   font-weight: 700;
-  font-size: 18px;   /* ✅ 글자 크기 키움 */
+  font-size: 18px;   
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -140,25 +139,148 @@
   padding: 6px 0;
 }
 
-/* 화살표 아이콘 */
 .sb__arrow {
   font-size: 12px;
-  width: 16px;        /* ✅ 고정 폭 확보 */
+  width: 16px;       
   display: inline-block;
-  text-align: center; /* 가운데 정렬 */
+  text-align: center;
 }
-/* NavLink (a 태그) 포커스/클릭 시 밑줄 제거 */
 .sb__item:focus,
 .sb__item:active,
 .sb__subitem:focus,
 .sb__subitem:active {
-  outline: none;         /* ✅ 브라우저 기본 포커스 라인 제거 */
-  text-decoration: none; /* ✅ 밑줄 제거 */
-  box-shadow: none;      /* ✅ 일부 브라우저의 내부 그림자 제거 */
+  outline: none;         
+  text-decoration: none; 
+  box-shadow: none;      
 }
 
-/* Sidebar.css */
 .sb__item--face {
-  padding-left: 50px;  /* 숫자는 취향대로 (화살표 너비만큼) */
+  padding-left: 50px; 
+}
+
+:root {
+  --sb-width: 240px;       
+  --sb-width-collapsed: 72px;
+}
+
+.sb {
+  width: var(--sb-width);
+  transition: width 0.2s ease;
+}
+
+.sb.sb--collapsed {
+  width: var(--sb-width-collapsed);
+}
+
+.sb__header {
+  display: flex;
+  align-items: center;
+  gap: 8px; 
+  padding: 12px;
+  cursor: pointer;
+}
+
+.sb__logo {
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+}
+
+.sb__brand {
+  font-weight: 700;
+  font-size: 16px;
+  line-height: 1;
+}
+
+.sb.sb--collapsed .sb__brand {
+  display: none;
+}
+
+.sb__collapseBtn {
+  margin-left: auto;       
+  width: 28px;
+  height: 28px;
+  border: 1px solid #e5e7eb; 
+  background: #fff;
+  border-radius: 6px;
+  font-size: 14px;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.sb__collapseBtn:hover {
+  background: #f9fafb; /* Hover 배경 */
+}
+
+.sb__nav {
+  padding: 8px 6px;
+}
+
+.sb__item,
+.sb__subitem,
+.sb__dropdown {
+  display: flex;
+  align-items: center;
+  gap: 8px;                
+  padding: 10px 12px;
+  border-radius: 8px;
+  color: #111827;           
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.sb__item.active,
+.sb__subitem.active {
+  background: #eef2ff;      
+  color: #4338ca;           
+  font-weight: 600;
+}
+
+.sb__submenu {
+  padding-left: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.sb__arrow {
+  width: 14px;
+  text-align: center;
+}
+
+.sb.sb--collapsed .sb__label {
+  display: none;
+}
+
+.sb.sb--collapsed .sb__dropdown .sb__arrow {
+  display: none;
+}
+
+.sb.sb--collapsed .sb__submenu {
+  display: none !important;
+}
+
+.sb__dropdown.sb__dropdown--disabled {
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+.sb__divider {
+  margin: 8px 0;
+  border: none;
+  border-top: 1px solid #e5e7eb;
+}
+.sb__collapseIcon {
+  width: 14px;  
+  height: 14px;
+  display: block;
+  transition: transform 0.2s ease;
+  transform: rotate(0deg);          
+}
+
+.sb__collapseIcon.is-collapsed {
+  transform: rotate(180deg);        
 }
 

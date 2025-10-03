@@ -115,33 +115,33 @@ export default function TelemedSummaryPage() {
     return s ? <span>{s}</span> : <span style={styles.muted}>정보 없음</span>;
   };
 
-  const clinicName =
-    data?.clinicName ||
-    data?.hospitalName ||
-    data?.hospital?.name ||
-    data?.clinic?.name ||
-    data?.organization?.name ||
-    data?.doctor?.hospitalName ||
-    data?.doctor?.clinicName ||
-    location?.state?.clinicName ||
-    location?.state?.hospital?.name ||
+   const clinicName =
+    data?.hospitalName ??
+    data?.clinicName ??
+    data?.hospital?.name ??
+    data?.clinic?.name ??
+    data?.organization?.name ??
+    data?.doctor?.hospitalName ??
+    data?.doctor?.clinicName ??
+    location?.state?.clinicName ??
+    location?.state?.hospital?.name ??
     null;
 
-  const visitDate =
-    fmtDate(
-      data?.date ||
-        data?.visitDate ||
-        data?.consultationDate ||
-        data?.session?.startAt ||
-        data?.startedAt ||
-        data?.startTime ||
-        data?.createdAt ||
-        data?.updatedAt ||
-        location?.state?.slotDate ||
-        location?.state?.reservedAt ||
-        location?.state?.date ||
-        null
-    );
+   const visitDate = fmtDate(
+    data?.slotDate ??           // ✅ 서버 응답(LocalDate) 우선
+    data?.date ??
+    data?.visitDate ??
+    data?.consultationDate ??
+    data?.session?.startAt ??
+    data?.startedAt ??
+    data?.startTime ??
+    data?.createdAt ??
+    data?.updatedAt ??
+    location?.state?.slotDate ??
+    location?.state?.reservedAt ??
+    location?.state?.date ??
+    null
+  );
 
   return (
     <div className="visit" style={{ "--sidebar-w": "220px" }}>
@@ -278,6 +278,7 @@ const styles = {
     borderBottomRightRadius: 8,
     lineHeight: 1.45,
     fontSize: 15,
+    fontWeight: 700, 
   },
   bubbleDoctor: {
     alignSelf: "flex-start",
@@ -289,6 +290,7 @@ const styles = {
     borderBottomLeftRadius: 8,
     lineHeight: 1.45,
     fontSize: 15,
+    fontWeight: 700, 
   },
 
   reportCard: {
@@ -305,6 +307,7 @@ const styles = {
     fontWeight: 800,
     color: "#3D46FF",
     marginBottom: 8,
+    fontSize: 22, 
   },
   reportLine: { height: 2, background: "#D7DBFF", margin: "0 8px 12px" },
 
@@ -313,12 +316,12 @@ const styles = {
     display: "grid",
     gridTemplateColumns: "1fr auto",
     alignItems: "start",
-    margin: "0 8px 12px",
+    margin: "0 8px 20px",
   },
   hospitalName: {
     color: "#111827",
     fontWeight: 800,
-    fontSize: 18,
+    fontSize: 15,
   },
   date: {
     color: "#3D46FF",

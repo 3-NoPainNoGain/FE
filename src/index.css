@@ -4,3 +4,12 @@ body {
   font-family: system-ui, sans-serif;
   background: #f7f7f8;
 }
+/* 전체 기본 폰트: Pretendard Variable */
+html, body, #root {
+  font-family: 'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont,
+               'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Apple SD Gothic Neo',
+               'Noto Sans KR', 'Malgun Gothic', 'Apple Color Emoji', 'Segoe UI Emoji',
+               'Segoe UI Symbol', sans-serif;
+  -webkit-font-smoothing: antialiased; /* 맥/크롬 렌더링 개선 */
+  -moz-osx-font-smoothing: grayscale;
+}

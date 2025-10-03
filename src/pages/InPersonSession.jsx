@@ -1,10 +1,10 @@
-// src/pages/InPersonSession.jsx
 import { useEffect, useRef, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom"; // ← Link 제거
+import { useNavigate, useParams } from "react-router-dom";
 import { sendSignText, endDiagnosisSession, uploadDiagnosisSpeech } from "../services/diagnosis.js";
 import { createBrowserSTT } from "../services/stt.js";
 import HandPoseTracker from "../components/HandPoseTracker";
 import Sidebar from "../components/Sidebar";
+
 import "./session.css";
 
 function ChatBubble({ role, text }) {

@@ -5,10 +5,15 @@ import { api } from "../auth/axios";
 import "./session.css";
 import "./telemed-detail.css";
 
-// 이미지 import
+// 이미지 import (doctors)
 import stringDoctor from "../assets/stringDoctor.png";
 import hyejunDoctor from "../assets/hyejunDoctor.png";
 import haeunDoctor from "../assets/haeunDoctor.png";
+import hyunjuDoctor from "../assets/hyunjuDoctor.png";
+import minkyungDoctor from "../assets/minkyungDoctor.png";
+import seonhoDoctor from "../assets/seonhoDoctor.png";
+import seungcheolDoctor from "../assets/seungcheolDoctor.png";
+import yunaDoctor from "../assets/yunaDoctor.png";
 
 /** 상태 배지 (open/closed) */
 function StatusBadge({ status }) {
@@ -59,7 +64,12 @@ export default function TeleDoctorDetail() {
     18: stringDoctor,
     19: hyejunDoctor,
     20: haeunDoctor,
-  };
+    23: hyunjuDoctor,
+    24: minkyungDoctor,
+    25: seonhoDoctor,
+    26: yunaDoctor,
+    27: seungcheolDoctor,
+    };
 
   useEffect(() => {
     let alive = true;

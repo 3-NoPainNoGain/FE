@@ -7,21 +7,45 @@ import "./telemed.css";
 import "./session.css";
 
 /* ================================
-   썸네일 이미지 임포트
+   썸네일 이미지 임포트 (로고)
    ================================ */
 import stringDoctorImg from "../assets/stringLogo.png";
 import hyejunDoctorImg from "../assets/hyejunLogo.png";
 import haeunDoctorImg from "../assets/haeunLogo.png";
+import hyunjuDoctorImg from "../assets/hyunjuLogo.png";
+import minkyungDoctorImg from "../assets/minkyungLogo.png";
+import seonhoDoctorImg from "../assets/seonhoLogo.png";
+import yunaDoctorImg from "../assets/yunaLogo.png";
+import seungcheolDoctorImg from "../assets/seungcheolLogo.png";
 
-/* (선택) id → 이미지 고정 매핑 */
+/* 고정 매핑: doctorProfileId → 썸네일(로고)
+   ※ 너가 준 ID 매핑 기준
+     18: string, 19: hyejun, 20: haeun,
+     23: hyunju, 24: minkyung, 25: seonho,
+     26: yuna, 27: seungcheol
+*/
 const THUMB_BY_ID = {
-  // "1": stringDoctorImg,
-  // "19": hyejunDoctorImg,
-  // "42": haeunDoctorImg,
+  18: stringDoctorImg,
+  19: hyejunDoctorImg,
+  20: haeunDoctorImg,
+  23: hyunjuDoctorImg,
+  24: minkyungDoctorImg,
+  25: seonhoDoctorImg,
+  26: yunaDoctorImg,
+  27: seungcheolDoctorImg,
 };
 
-/* 순서 매핑 */
-const ORDERED_THUMBS = [stringDoctorImg, hyejunDoctorImg, haeunDoctorImg];
+/* 순서 매핑 (fallback) */
+const ORDERED_THUMBS = [
+  stringDoctorImg,
+  hyejunDoctorImg,
+  haeunDoctorImg,
+  hyunjuDoctorImg,
+  minkyungDoctorImg,
+  seonhoDoctorImg,
+  yunaDoctorImg,
+  seungcheolDoctorImg,
+];
 
 /** 상태 배지 */
 function StatusBadge({ status }) {
@@ -45,7 +69,7 @@ function DoctorCard({ id, hospital, name, status, thumb }) {
               decoding="async"
               width={1536}
               height={1024}
-              /* ✅ contain → cover 로 바꿔서 여백 없이 꽉 채우기 */
+              /* 가로형 이미지를 카드에 꽉 채우기 */
               style={{
                 objectFit: "cover",
                 objectPosition: "center",

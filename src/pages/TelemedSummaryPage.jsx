@@ -1,11 +1,10 @@
 import "./visit.css";
 import { useEffect, useMemo, useState } from "react";
-import { useLocation, useParams } from "react-router-dom";
+import { useLocation, useParams, Link } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
 import { getTelemedSummary } from "../services/telemedicine"; // ← telemed 요약 API
 
 export default function TelemedSummaryPage() {
-  // URL: /telemed/summary/:roomId
   const { roomId } = useParams();
   const location = useLocation();
 
@@ -32,7 +31,6 @@ export default function TelemedSummaryPage() {
     };
   }, [roomId]);
 
-  // 채팅 복원 (모달에서 state로 넘긴 messages 우선 → 세션스토리지 → 백엔드)
   const chatItems = useMemo(() => {
     const fromState = location?.state?.messages;
 
@@ -41,7 +39,7 @@ export default function TelemedSummaryPage() {
       const raw = sessionStorage.getItem(`chat:${roomId}`);
       if (raw) fromStorage = JSON.parse(raw);
     } catch (e) {
-      // storage 복원 실패는 무시
+      console.debug("sessionStorage restore skipped:", e); // eslint ok
     }
 
     const fromBackend =
@@ -66,12 +64,27 @@ export default function TelemedSummaryPage() {
     const s = String(t ?? "").trim();
     return s || "정보 없음";
   };
+
+  const fmtDate = (v) => {
+    if (!v) return "정보 없음";
+    if (typeof v === "string" && /^\d{4}[./-]\d{1,2}[./-]\d{1,2}$/.test(v)) {
+      return v.replace(/-/g, ".").replace(/\//g, ".");
+    }
+    const d = new Date(v);
+    if (Number.isNaN(d.getTime())) return String(v);
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${y}.${m}.${day}`;
+  };
+
   const fmtText = (v) => {
     if (v == null) return "정보 없음";
     if (Array.isArray(v)) return v.length ? v.join(", ") : "정보 없음";
     const s = String(v).trim();
     return s || "정보 없음";
   };
+
   const renderAny = (v) => {
     if (v == null) return <span style={styles.muted}>정보 없음</span>;
     if (Array.isArray(v)) {
@@ -102,6 +115,34 @@ export default function TelemedSummaryPage() {
     return s ? <span>{s}</span> : <span style={styles.muted}>정보 없음</span>;
   };
 
+  const clinicName =
+    data?.clinicName ||
+    data?.hospitalName ||
+    data?.hospital?.name ||
+    data?.clinic?.name ||
+    data?.organization?.name ||
+    data?.doctor?.hospitalName ||
+    data?.doctor?.clinicName ||
+    location?.state?.clinicName ||
+    location?.state?.hospital?.name ||
+    null;
+
+  const visitDate =
+    fmtDate(
+      data?.date ||
+        data?.visitDate ||
+        data?.consultationDate ||
+        data?.session?.startAt ||
+        data?.startedAt ||
+        data?.startTime ||
+        data?.createdAt ||
+        data?.updatedAt ||
+        location?.state?.slotDate ||
+        location?.state?.reservedAt ||
+        location?.state?.date ||
+        null
+    );
+
   return (
     <div className="visit" style={{ "--sidebar-w": "220px" }}>
       <Sidebar />
@@ -109,6 +150,10 @@ export default function TelemedSummaryPage() {
       <main className="visit__main">
         <div className="vm__container">
           <div style={styles.page}>
+            <div style={styles.topBar}>
+              <div /> {/* 왼쪽 비워서 우측 정렬 */}
+              <Link to="/" style={styles.btnGhost}>메인페이지</Link>
+              </div>
             <section style={styles.grid}>
               {/* 좌측: 대화 로그 */}
               <div style={styles.chatCard}>
@@ -133,10 +178,16 @@ export default function TelemedSummaryPage() {
                 </div>
               </div>
 
-              {/* 우측: 보고서 */}
               <div style={styles.reportCard}>
                 <div style={styles.reportTitle}>진료 내용 보고서</div>
                 <div style={styles.reportLine} />
+
+                <div style={styles.meta}>
+                  <div style={styles.hospitalName}>
+                    {clinicName || "병원 정보 없음"}
+                  </div>
+                  <div style={styles.date}>{visitDate}</div>
+                </div>
 
                 <div style={styles.reportScroll}>
                   {loading && <div style={styles.muted}>불러오는 중…</div>}
@@ -216,6 +267,7 @@ const styles = {
     gap: 10,
   },
   empty: { color: "#9CA3AF", textAlign: "center", marginTop: 20 },
+
   bubblePatient: {
     alignSelf: "flex-end",
     maxWidth: "78%",
@@ -238,6 +290,7 @@ const styles = {
     lineHeight: 1.45,
     fontSize: 15,
   },
+
   reportCard: {
     background: "#fff",
     borderRadius: 16,
@@ -247,8 +300,33 @@ const styles = {
     display: "flex",
     flexDirection: "column",
   },
-  reportTitle: { textAlign: "center", fontWeight: 800, color: "#3D46FF", marginBottom: 8 },
+  reportTitle: {
+    textAlign: "center",
+    fontWeight: 800,
+    color: "#3D46FF",
+    marginBottom: 8,
+  },
   reportLine: { height: 2, background: "#D7DBFF", margin: "0 8px 12px" },
+
+  /* ✅ 메타(병원이름/날짜) 스타일 */
+  meta: {
+    display: "grid",
+    gridTemplateColumns: "1fr auto",
+    alignItems: "start",
+    margin: "0 8px 12px",
+  },
+  hospitalName: {
+    color: "#111827",
+    fontWeight: 800,
+    fontSize: 18,
+  },
+  date: {
+    color: "#3D46FF",
+    fontWeight: 700,
+    fontSize: 13,
+    alignSelf: "start",
+  },
+
   reportScroll: {
     flex: 1,
     overflow: "auto",
@@ -274,4 +352,24 @@ const styles = {
   kvRow: { display: "grid", gridTemplateColumns: "140px 1fr", gap: 10 },
   kvKey: { color: "#6B7280", fontWeight: 700 },
   kvVal: { color: "#111827" },
+
+  topBar: {
+     display: "flex",
+     justifyContent: "flex-end",
+     alignItems: "center",
+     margin: "0 0 12px",
+   },
+   btnGhost: {
+     height: 38,
+     padding: "0 14px",
+     borderRadius: 10,
+     border: "1px solid #E5E7EB",
+     background: "#fff",
+     cursor: "pointer",
+     textDecoration: "none",
+     display: "inline-flex",
+     alignItems: "center",
+     color: "#111827",
+     fontWeight: 600,
+   },
 };

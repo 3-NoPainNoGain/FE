@@ -1,4 +1,4 @@
-import './visit.css'; 
+import './visit.css';
 import { useEffect, useMemo, useState } from "react";
 import { useLocation, useParams } from "react-router-dom";
 import { getDiagnosisSummary } from "../services/diagnosis.js";

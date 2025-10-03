@@ -1,10 +1,14 @@
-// src/pages/TeleDoctorDetail.jsx
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
-import { api } from "../auth/axios";        // ← axios 인스턴스
+import { api } from "../auth/axios";
 import "./session.css";
 import "./telemed-detail.css";
+
+// 이미지 import
+import stringDoctor from "../assets/stringDoctor.png";
+import hyejunDoctor from "../assets/hyejunDoctor.png";
+import haeunDoctor from "../assets/haeunDoctor.png";
 
 /** 상태 배지 (open/closed) */
 function StatusBadge({ status }) {
@@ -16,7 +20,6 @@ function StatusBadge({ status }) {
 
 /** API 응답 → 화면 모델 정규화 */
 function normalizeDoctor(results = {}) {
-  // status: "진료 가능" | "진료 종료" → "open" | "closed"
   const status =
     results.status === "진료 가능"
       ? "open"
@@ -24,19 +27,13 @@ function normalizeDoctor(results = {}) {
       ? "closed"
       : "closed";
 
-  // 소개문
   const intro =
-    results.introduction ??
-    results.introduce ??
-    results.description ??
-    "";
+    results.introduction ?? results.introduce ?? results.description ?? "";
 
-  // 태그 리스트 → 문자열 배열
   const tagList = Array.isArray(results.doctorTagList)
     ? results.doctorTagList.map((t) => t?.name).filter(Boolean)
     : [];
 
-  // speciality(전문과)도 표시용으로 붙여주면 좋음
   const speciality = results.speciality ?? results.specialty ?? null;
 
   return {
@@ -56,6 +53,13 @@ export default function TeleDoctorDetail() {
   const [doc, setDoc] = useState(null);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
+
+  // doctorId 매핑 (18,19,20)
+  const doctorImages = {
+    18: stringDoctor,
+    19: hyejunDoctor,
+    20: haeunDoctor,
+  };
 
   useEffect(() => {
     let alive = true;
@@ -84,7 +88,6 @@ export default function TeleDoctorDetail() {
     };
   }, [doctorId]);
 
-  // 줄바꿈 분리
   const introLines = useMemo(
     () => String(doc?.intro || "").split("\n"),
     [doc]
@@ -94,13 +97,21 @@ export default function TeleDoctorDetail() {
     [doc]
   );
 
+  // 이미지 선택
+  const doctorImage = doctorImages[doctorId] ?? stringDoctor;
+
   return (
     <div className="telemed tele-detail">
       <Sidebar />
 
       <main className="tele-detail__main">
         {/* 상단 이미지 자리 */}
-        <div className="tele-detail__hero" aria-hidden="true" />
+        <div
+          className="tele-detail__hero"
+          style={{
+            backgroundImage: `url(${doctorImage})`,
+          }}
+        />
 
         {/* 헤더 */}
         <div className="tele-detail__head">
@@ -128,7 +139,6 @@ export default function TeleDoctorDetail() {
           </button>
         </div>
 
-        {/* 로딩/에러 */}
         {loading && (
           <div style={{ padding: 20, color: "#6b7280" }}>불러오는 중…</div>
         )}
@@ -136,7 +146,6 @@ export default function TeleDoctorDetail() {
           <div style={{ padding: 20, color: "#ef4444" }}>{err}</div>
         )}
 
-        {/* 소개 */}
         {!loading && !err && (
           <>
             <section className="tele-detail__section">
@@ -149,7 +158,6 @@ export default function TeleDoctorDetail() {
               </div>
             </section>
 
-            {/* 전문 진료 분야 */}
             <section className="tele-detail__section">
               {specialties.length > 0 ? (
                 <ul className="tele-detail__list">
@@ -158,7 +166,9 @@ export default function TeleDoctorDetail() {
                   ))}
                 </ul>
               ) : (
-                <p style={{ color: "#6b7280" }}>전문 진료 분야 정보가 없습니다.</p>
+                <p style={{ color: "#6b7280" }}>
+                  전문 진료 분야 정보가 없습니다.
+                </p>
               )}
             </section>
           </>

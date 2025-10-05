@@ -1,286 +1,203 @@
-.sb {
-  background: #fff;
-  border-right: 1px solid rgba(0, 0, 0, 0.06);
-  display: flex;
-  flex-direction: column;
-  padding: 12px 14px;
-  min-height: 100vh;
-  width: 220px;
+/* =============== */
+/* Sidebar Tokens  */
+/* =============== */
+:root {
+  /* 사이드바 폭 토큰(페이지에서 별도 지정 없으면 fallback 240/72) */
+  --sb-width: 240px;
+  --sb-width-collapsed: 72px;
+
+  /* 색/타이포 토큰 */
+  --sb-bg: #fff;
+  --sb-border: rgba(0, 0, 0, 0.06);
+  --sb-divider: #e5e7eb;
+  --sb-text: #111827;
+  --sb-text-dim: #9aa1a8;
+  --sb-brand: #2C3E7F;
+  --sb-accent: #4338ca;
+  --sb-active-bg: #eef2ff; /* 연보라 pill */
+  --sb-hover-bg: #f9fafb;
+
+  --sb-font-family: "Pretendard", system-ui, -apple-system, Segoe UI, Roboto, Arial, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+  --sb-base-size: 16px;
+  --sb-line-height: 1.2;
 }
 
-/* 상단 로고 영역 */
+/* ===================== */
+/* Sidebar Base (scoped) */
+/* ===================== */
+.sb {
+  box-sizing: border-box;
+  background: var(--sb-bg);
+  border-right: 1px solid var(--sb-border);
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+
+  /* ✅ 폭은 변수 기반 + fallback */
+  width: var(--sb-width, 240px);
+  transition: width 0.2s ease;
+
+  /* ✅ 폰트/라인하이트를 여기서 고정해서 페이지별 폰트 영향 차단 */
+  font-family: var(--sb-font-family);
+  font-size: var(--sb-base-size);
+  line-height: var(--sb-line-height);
+
+  /* 내부 패딩 */
+  padding: 12px 14px;
+}
+
+/* 접힘 상태 */
+.sb.sb--collapsed { width: var(--sb-width-collapsed, 72px); }
+
+/* ================== */
+/* Header / Brand Bar */
+/* ================== */
 .sb__header {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 4px 6px 10px;
+  gap: 8px;
+  padding: 12px;
   cursor: pointer;
 }
 .sb__logo {
-  width: 28px;
-  height: 28px;
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
 }
 .sb__brand {
   font-weight: 800;
-  color: #2C3E7F;
+  color: var(--sb-brand);
   font-size: 20px;
+  line-height: 1;
 }
+.sb.sb--collapsed .sb__brand { display: none; }
 
-/* 구분선 */
+/* 접기 버튼 */
+.sb__collapseBtn {
+  margin-left: auto;
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--sb-divider);
+  background: #fff;
+  border-radius: 6px;
+  font-size: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.sb__collapseBtn:hover { background: var(--sb-hover-bg); }
+.sb__collapseIcon {
+  width: 14px; height: 14px; display: block;
+  transition: transform 0.2s ease;
+  transform: rotate(0deg);
+}
+.sb__collapseIcon.is-collapsed { transform: rotate(180deg); }
+
+/* ======== */
+/* Divider  */
+/* ======== */
 .sb__divider {
-  border: none;
-  border-top: 1px solid #e5e5e5;
   margin: 8px 0 16px;
+  border: none;
+  border-top: 1px solid var(--sb-divider);
 }
 
-/* 네비게이션 */
+/* ========= */
+/* Nav Area  */
+/* ========= */
 .sb__nav {
   display: flex;
   flex-direction: column;
   gap: 10px;
+  padding: 8px 6px;
 }
 
-/* NavLink 기본 스타일 제거 */
+/* 링크 기본 스타일 리셋(스코프 내) */
 .sb__nav a,
 .sb__submenu a {
   color: inherit;
   text-decoration: none;
 }
 
-/* 1차 메뉴 */
+/* 1차 메뉴 (대면 진료, 비대면 진료) */
 .sb__item {
-  color: #000;
-  font-weight: 700;
-  font-size: 16px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 0;
-}
-.sb__item.active {
-  color: #000;
-}
-.sb__dropdown {
-  user-select: none;
-}
-.sb__arrow {
-  font-size: 12px;
-}
-
-/* 2차 메뉴 */
-.sb__submenu {
-  display: flex;
-  flex-direction: column; /* 위아래 배치 */
-  margin-left: 16px;
-  margin-top: 6px;
-  gap: 8px; /* 항목 간 간격 */
-}
-.sb__subitem {
-  color: #000;            /* 비대면 진료와 같은 톤 */
-  font-weight: 600;
-  font-size: 15px;
-  text-decoration: none;  /* 언더라인 제거 */
-  padding: 4px 0;
-  cursor: pointer;
-}
-.sb__subitem:hover {
-  color: #2C3E7F;         /* hover 시 포인트 컬러 */
-}
-.sb__subitem.active {
-  color: #111;
-}
-
-/* 비활성 메뉴 */
-.sb__disabled {
-  cursor: default;
-  color: #b3b3b3;
-}
-
-/* 푸터 */
-.sb__footer {
-  margin-top: auto;
-  color: #9aa1a8;
-  font-size: 13px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-.dot {
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  background: #bfc4ca;
-  display: inline-block;
-}
-
-/* 반응형 */
-@media (max-width: 900px) {
-  .sb {
-    width: 68px;
-  }
-  .sb__brand {
-    display: none;
-  }
-  .sb__item {
-    font-size: 14px;
-    padding: 8px;
-  }
-}
-
-.sb__item {
-  color: #000;
-  font-weight: 700;
-  font-size: 18px;   
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 0;
-}
-
-.sb__arrow {
-  font-size: 12px;
-  width: 16px;       
-  display: inline-block;
-  text-align: center;
-}
-.sb__item:focus,
-.sb__item:active,
-.sb__subitem:focus,
-.sb__subitem:active {
-  outline: none;         
-  text-decoration: none; 
-  box-shadow: none;      
-}
-
-.sb__item--face {
-  padding-left: 50px; 
-}
-
-:root {
-  --sb-width: 240px;       
-  --sb-width-collapsed: 72px;
-}
-
-.sb {
-  width: var(--sb-width);
-  transition: width 0.2s ease;
-}
-
-.sb.sb--collapsed {
-  width: var(--sb-width-collapsed);
-}
-
-.sb__header {
-  display: flex;
-  align-items: center;
-  gap: 8px; 
-  padding: 12px;
-  cursor: pointer;
-}
-
-.sb__logo {
-  width: 32px;
-  height: 32px;
-  object-fit: contain;
-}
-
-.sb__brand {
-  font-weight: 700;
-  font-size: 16px;
-  line-height: 1;
-}
-
-.sb.sb--collapsed .sb__brand {
-  display: none;
-}
-
-.sb__collapseBtn {
-  margin-left: auto;       
-  width: 28px;
-  height: 28px;
-  border: 1px solid #e5e7eb; 
-  background: #fff;
-  border-radius: 6px;
-  font-size: 14px;
-  line-height: 1;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-}
-.sb__collapseBtn:hover {
-  background: #f9fafb; /* Hover 배경 */
-}
-
-.sb__nav {
-  padding: 8px 6px;
-}
-
-.sb__item,
-.sb__subitem,
-.sb__dropdown {
-  display: flex;
-  align-items: center;
-  gap: 8px;                
+  display: flex; align-items: center; gap: 8px;
   padding: 10px 12px;
   border-radius: 8px;
-  color: #111827;           
-  text-decoration: none;
+
+  color: #000;
+  font-weight: 700;
+  font-size: 18px; /* 통일 */
   cursor: pointer;
 }
-
-.sb__item.active,
-.sb__subitem.active {
-  background: #eef2ff;      
-  color: #4338ca;           
-  font-weight: 600;
+.sb__item:hover { background: var(--sb-hover-bg); }
+.sb__item:focus,
+.sb__item:active { outline: none; box-shadow: none; text-decoration: none; }
+.sb__item.active {
+  background: var(--sb-active-bg);
+  color: var(--sb-accent);
+  font-weight: 700;
 }
 
-.sb__submenu {
-  padding-left: 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
+/* 화살표 아이콘(드롭다운) */
 .sb__arrow {
-  width: 14px;
-  text-align: center;
+  width: 16px; text-align: center; font-size: 12px;
+}
+.sb.sb--collapsed .sb__dropdown .sb__arrow { display: none; }
+
+/* 2차 메뉴 (예약/내역) */
+.sb__submenu {
+  display: flex; flex-direction: column; gap: 6px;
+  padding-left: 16px; /* 들여쓰기 */
+  margin-top: 6px;
+}
+.sb__subitem {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 12px;
+  border-radius: 8px;
+
+  color: #000;
+  font-weight: 600;
+  font-size: 15px;
+  cursor: pointer;
+}
+.sb__subitem:hover { background: var(--sb-hover-bg); color: var(--sb-brand); }
+.sb__subitem:focus,
+.sb__subitem:active { outline: none; box-shadow: none; text-decoration: none; }
+.sb__subitem.active {
+  background: var(--sb-active-bg);
+  color: var(--sb-accent);
+  font-weight: 700;
 }
 
-.sb.sb--collapsed .sb__label {
-  display: none;
-}
-
-.sb.sb--collapsed .sb__dropdown .sb__arrow {
-  display: none;
-}
-
-.sb.sb--collapsed .sb__submenu {
-  display: none !important;
-}
-
+/* 드롭다운 항목 자체가 비활성일 때 */
 .sb__dropdown.sb__dropdown--disabled {
   opacity: 0.7;
   pointer-events: none;
 }
 
-.sb__divider {
-  margin: 8px 0;
-  border: none;
-  border-top: 1px solid #e5e7eb;
-}
-.sb__collapseIcon {
-  width: 14px;  
-  height: 14px;
-  display: block;
-  transition: transform 0.2s ease;
-  transform: rotate(0deg);          
-}
+/* 접힘 모드에서 라벨/서브메뉴 감춤 */
+.sb.sb--collapsed .sb__label { display: none; }
+.sb.sb--collapsed .sb__submenu { display: none !important; }
 
-.sb__collapseIcon.is-collapsed {
-  transform: rotate(180deg);        
+/* ======= */
+/* Footer  */
+/* ======= */
+.sb__footer {
+  margin-top: auto;
+  color: var(--sb-text-dim);
+  font-size: 13px;
+  display: flex; align-items: center; gap: 6px;
 }
+.dot { width: 12px; height: 12px; border-radius: 50%; background: #bfc4ca; display: inline-block; }
 
+/* ============ */
+/* Responsive   */
+/* ============ */
+@media (max-width: 900px) {
+  /* 모바일 기준은 ‘접힘 모드’를 쓰는 편이 UX가 좋아서 폭만 줄임 */
+  .sb { width: 68px; }
+  .sb__brand { display: none; }
+  .sb__item { font-size: 14px; padding: 8px; }
+}

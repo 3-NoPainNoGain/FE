@@ -65,8 +65,6 @@
 }
 .apply__fieldset textarea:focus { border-color:#4f5df6; box-shadow:0 0 0 3px rgba(79,93,246,.15); }
 
-/* sidebar width 보장 */
-.apply > .sb { flex: 0 0 220px; }
 
 /* 버튼 비활성 시 */
 .btn-primary[disabled],
@@ -177,7 +175,5 @@
 }
 .apply__fieldset textarea:focus { border-color:#4f5df6; box-shadow:0 0 0 3px rgba(79,93,246,.15); }
 
-/* 사이드바 폭 보장 */
-.apply > .sb { flex: 0 0 220px; }
 
 

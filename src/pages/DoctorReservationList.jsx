@@ -9,6 +9,8 @@ import {
   setReservationDecision,
 } from "../services/reservation";
 
+import ReservationPaperModal from "../components/ReservationPaperModal"; 
+
 const STATUS = {
   PENDING: "PENDING",
   ACCEPTED: "ACCEPTED",
@@ -16,26 +18,20 @@ const STATUS = {
   COMPLETED: "COMPLETED",
 };
 
-/* BE 상태 → FE 상태 매핑 */
 function normalizeStatus(raw) {
   const s = String(raw || "").toUpperCase();
 
-  // 대기 상태
   if (["REQUESTED"].includes(s)) return STATUS.PENDING;
 
-  // 수락됨 (CONFIRMED도 ACCEPTED로 매핑해야 새로고침해도 유지됨)
   if (["CONFIRMED", "ACCEPTED", "ACTIVE"].includes(s)) return STATUS.ACCEPTED;
 
-  // 거절/취소
   if (["REJECTED", "CANCELED", "CANCELLED"].includes(s)) return STATUS.REJECTED;
 
-  // 완료
   if (["COMPLETED", "DONE", "FINISHED"].includes(s)) return STATUS.COMPLETED;
 
   return STATUS.PENDING;
 }
 
-/* 목록에 이름 붙이기 */
 async function hydrateWithNames(items) {
   const details = await Promise.all(
     items.map((it) =>
@@ -53,7 +49,7 @@ async function hydrateWithNames(items) {
     dateLabel: `${String(it.slotDate || "").replaceAll("-", ".")} | ${String(
       it.startTime || ""
     ).slice(0, 5)}~${String(it.endTime || "").slice(0, 5)}`,
-    applyPath: `/doctor/applications/${it.reservationId}`,
+    applyPath: `/doctor/applications/${it.reservationId}`, 
   }));
 }
 
@@ -62,6 +58,8 @@ export default function DoctorReservationList() {
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
   const [confirm, setConfirm] = useState({ open: false, id: null, action: null });
+
+  const [activePaperId, setActivePaperId] = useState(null);
 
   useEffect(() => {
     let alive = true;
@@ -120,6 +118,9 @@ export default function DoctorReservationList() {
     confirm.action === "ACCEPT" ? "진료 수락하시겠습니까?" : "진료 거절하시겠습니까?";
   const confirmText = confirm.action === "ACCEPT" ? "수락" : "거절";
 
+  const openPaper = (id) => setActivePaperId(id);
+  const closePaper = () => setActivePaperId(null);
+
   return (
     <div className="telemed apply">
       <Sidebar />
@@ -145,58 +146,61 @@ export default function DoctorReservationList() {
                 </div>
               </div>
 
-<div className="doclist__tbody">
-  {rows
-    .filter((r) => r.status !== STATUS.REJECTED) // ⬅️ 거절/취소 예약 숨기기
-    .map((r) => (
-      <div className="doclist__row" key={r.id}>
-        <div className="col col--time">{r.dateLabel}</div>
-        <div className="col col--name">{r.name}</div>
-        <div className="col col--symptom">{r.symptoms}</div>
-        <div className="col col--paper">
-          <Link className="doclist__link" to={r.applyPath}>
-            진료 신청서
-          </Link>
-        </div>
-        <div className="col col--actions">
-          {r.status === STATUS.PENDING && (
-            <div className="actions">
-              <button
-                className="btn btn--ghost"
-                onClick={() => ask(r.id, "REJECT")}
-              >
-                거절
-              </button>
-              <button
-                className="btn btn--primary"
-                onClick={() => ask(r.id, "ACCEPT")}
-              >
-                수락
-              </button>
-            </div>
-          )}
+              <div className="doclist__tbody">
+                {rows
+                  .filter((r) => r.status !== STATUS.REJECTED)
+                  .map((r) => (
+                    <div className="doclist__row" key={r.id}>
+                      <div className="col col--time">{r.dateLabel}</div>
+                      <div className="col col--name">{r.name}</div>
+                      <div className="col col--symptom">{r.symptoms}</div>
+                      <div className="col col--paper">
+                        <button
+                          type="button"
+                          className="doclist__link as-button doclist__link--muted"
+                          onClick={() => openPaper(r.id)}
+                          aria-label={`예약 ${r.id}의 진료 신청서 보기`}
+                        >
+                          진료 신청서
+                        </button>
+                      </div>
+                      <div className="col col--actions">
+                        {r.status === STATUS.PENDING && (
+                          <div className="actions">
+                            <button
+                              className="btn btn--ghost"
+                              onClick={() => ask(r.id, "REJECT")}
+                            >
+                              거절
+                            </button>
+                            <button
+                              className="btn btn--primary"
+                              onClick={() => ask(r.id, "ACCEPT")}
+                            >
+                              수락
+                            </button>
+                          </div>
+                        )}
 
-{r.status === STATUS.ACCEPTED && (
-  <div className="actions">
-    <Link
-      to={`/tele/session/${r.id}`}
-      state={{ roleHint: "doctor" }}
-      className="btn btn--primary no-underline"
-    >
-      진료 입장
-    </Link>
-  </div>
-)}
+                        {r.status === STATUS.ACCEPTED && (
+                          <div className="actions">
+                            <Link
+                              to={`/tele/session/${r.id}`}
+                              state={{ roleHint: "doctor" }}
+                              className="btn btn--primary no-underline"
+                            >
+                              진료 입장
+                            </Link>
+                          </div>
+                        )}
 
-
-          {r.status === STATUS.COMPLETED && (
-            <span className="state state--accepted">수락 완료</span>
-          )}
-        </div>
-      </div>
-    ))}
-</div>
-
+                        {r.status === STATUS.COMPLETED && (
+                          <span className="state state--accepted">수락 완료</span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+              </div>
             </div>
           </section>
         </div>
@@ -215,6 +219,10 @@ export default function DoctorReservationList() {
               </div>
             </div>
           </div>
+        )}
+
+        {activePaperId != null && (
+          <ReservationPaperModal reservationId={activePaperId} onClose={closePaper} />
         )}
       </main>
     </div>

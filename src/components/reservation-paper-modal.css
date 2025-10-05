@@ -1,0 +1,218 @@
+.rpmodal__backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+
+  background: rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+
+.rpmodal__panel {
+  width: min(92vw, 520px);
+  max-height: 88vh;
+  overflow: auto; 
+  background: #fff;
+  border-radius: 18px;
+  box-shadow:
+    0 10px 25px rgba(0, 0, 0, 0.18),
+    0 2px 8px rgba(0, 0, 0, 0.12);
+  padding: 18px 18px 22px;
+  position: relative;
+}
+
+.rpmodal__topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 8px;
+  margin-bottom: 10px;
+  border-bottom: 1px solid #eee;
+}
+
+.rpmodal__heading {
+  font-size: 18px;
+  font-weight: 700;
+  color: #1a1a1a;
+}
+
+.rpmodal__close {
+  appearance: none;
+  border: 0;
+  outline: none;
+  background: #f4f5f7;
+  border-radius: 10px;
+  padding: 6px 10px;
+  cursor: pointer;
+  font-size: 16px;
+}
+.rpmodal__close:hover {
+  background: #eceef1;
+}
+
+.resv__card {
+  margin: 0; 
+}
+.resv__titlewrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px; 
+}
+
+.rpmodal__close--inline {
+  appearance: none;
+  border: 0;
+  outline: none;
+  cursor: pointer;
+  background: #f4f5f7;
+  width: 28px;
+  height: 28px;
+  line-height: 28px;
+  border-radius: 6px;
+  font-size: 16px;
+  text-align: center;
+  padding: 0;
+}
+.rpmodal__close--inline:hover {
+  background: #eceef1;
+}
+
+.resv__card {
+  margin: 0;
+}
+.resv__card {
+  position: relative;  
+  margin: 0;           
+}
+
+.rpmodal__close--abs {
+  position: absolute;
+  top: 12px;          
+  right: 12px;
+  z-index: 1;
+  appearance: none;
+  border: 0;
+  outline: none;
+  cursor: pointer;
+  background: #f4f5f7;
+  width: 30px;        
+  height: 30px;
+  line-height: 30px;
+  border-radius: 8px;
+  font-size: 16px;
+  text-align: center;
+  padding: 0;
+  transition: background 0.15s ease, transform 0.05s ease;
+}
+.rpmodal__close--abs:hover { background: #eceef1; }
+.rpmodal__close--abs:active { transform: translateY(1px); }
+.rpmodal__close--abs:focus-visible {
+  outline: 2px solid #8aa8ff;
+  outline-offset: 2px;
+}
+.resv__card {
+  position: relative;
+  margin: 0;
+}
+
+.rpmodal__close--corner {
+  position: absolute;
+  top: -8px;         
+  right: -8px;
+
+  z-index: 2;
+  appearance: none;
+  border: 1px solid rgba(0,0,0,0.08);
+  background: #ffffff;
+  width: 32px;       
+  height: 32px;
+  line-height: 32px;
+  border-radius: 999px;   
+  font-size: 16px;
+  text-align: center;
+  cursor: pointer;
+  box-shadow:
+    0 6px 14px rgba(0,0,0,0.12),
+    0 2px 6px rgba(0,0,0,0.08);
+  transition: background 0.15s ease, transform 0.05s ease, box-shadow 0.15s ease;
+}
+
+.rpmodal__close--corner:hover {
+  background: #f6f7f9;
+  box-shadow:
+    0 8px 18px rgba(0,0,0,0.16),
+    0 3px 8px rgba(0,0,0,0.10);
+}
+
+.rpmodal__close--corner:active {
+  transform: translateY(1px);
+}
+
+.rpmodal__close--corner:focus-visible {
+  outline: 2px solid #8aa8ff;
+  outline-offset: 2px;
+}
+
+.resv__card {
+  position: relative;
+  margin: 0;
+}
+
+.rpmodal__close--corner {
+  position: absolute;
+  top: -8px;      
+  right: -8px;
+  z-index: 2;
+
+  background: transparent;   
+  border: 0;                
+  box-shadow: none;         
+  width: 32px;              
+  height: 32px;
+  line-height: 32px;
+  padding: 0;
+  border-radius: 0;          
+  color: #1a1a1a;            
+  font-size: 18px;           
+  font-weight: 600;         
+
+  cursor: pointer;
+  transition: opacity 0.12s ease, transform 0.05s ease;
+}
+
+.rpmodal__close--corner:hover {
+  opacity: 0.75;           
+}
+
+.rpmodal__close--corner:active {
+  transform: translateY(1px);
+}
+
+.rpmodal__close--corner:focus-visible {
+  outline: 2px solid #8aa8ff;
+  outline-offset: 2px;
+}
+
+.resv__card {
+  position: relative;
+  margin: 0;
+}
+
+.rpmodal__close--corner {
+  position: absolute;
+  top: 8px;    
+  right: 8px;
+  z-index: 2;
+
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+
+  width: 32px; height: 32px; line-height: 32px;
+  font-size: 18px; font-weight: 600; color: #1a1a1a;
+  cursor: pointer;
+}
+

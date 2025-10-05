@@ -1,70 +1,30 @@
-
+/* NOTE: Sidebar styles live in src/components/Sidebar.css.
+   Do NOT style .sb / .sb__* here. This file controls page layout & content only. */
 
 .visit {
   --brand: #3D46FF;
   --brand-2: #3D6BFF;
-  --sidebar-w: 220px;
   --bg: #F7F7F8;
   --card: #FFFFFF;
   --ink: #111827;
   --muted: #6B7280;
   --shadow: 0 12px 28px rgba(0,0,0,.08);
+
   display: grid;
-  grid-template-columns: var(--sidebar-w) 1fr;
+  grid-template-columns: auto 1fr; /* ← Sidebar.css의 폭(접힘/펼침)을 자동 반영 */
   min-height: 100vh;
   background: var(--bg);
   font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
 }
 
-.visit__sidebar {
-  background: #fff;
-  border-right: 1px solid rgba(0,0,0,.06);
-  display: flex;
-  flex-direction: column;
-  padding: 12px 14px;
-}
-.sb__header {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 4px 6px 10px;
-}
-.sb__logo { width: 28px; height: 28px; }
-.sb__brand { font-weight: 800; color: #3D6BFF; font-size: 20px; }
-
-.sb__nav {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  padding: 10px 4px;
-}
-.sb__item {
-  color: #333;
-  text-decoration: none;
-  padding: 8px 6px;
-  border-radius: 8px;
-  font-weight: 600;
-}
-.sb__item:hover { background: rgba(0,0,0,.04); }
-.sb__item.active { color: #111; box-shadow: inset 0 -2px 0 #111; }
-
-.sb__footer {
-  margin-top: auto;
-  padding: 10px 6px 6px;
-}
-.sb__user { color: #9aa1a8; font-size: 13px; display: flex; align-items: center; gap: 6px; }
-.dot { width: 12px; height: 12px; border-radius: 50%; background: #bfc4ca; display:inline-block; }
-
-/* ========== Main ========== */
+/* ===== Main ===== */
 .visit__main {
   display: grid;
   place-items: start center;
   padding: 40px 24px 72px;
   background: #f7f8fc;
 }
-.vm__container {
-  width: min(980px, 92vw);
-}
+.vm__container { width: min(980px, 92vw); }
 
 /* (옵션) 카메라 프리뷰 영역이 필요할 때 사용 */
 .vm__preview {
@@ -77,17 +37,16 @@
   margin-bottom: 100px;
 }
 
-
+/* 가이드 카드 */
 .vm__guideCard {
   background: var(--card);
   border-radius: 20px;
   box-shadow: 0 12px 30px rgba(23, 26, 70, 0.08);
   padding: 28px 28px 10px;
-  margin: 70px auto 150px; 
-  margin-bottom: 40px;    /* 아래쪽 여백 확보 */
-  min-height: 400px;   
+  margin: 70px auto 150px;
+  margin-bottom: 40px;
+  min-height: 400px;
 }
-
 
 .vm__cardHeader { margin-bottom: 8px; }
 
@@ -118,9 +77,9 @@
 /* 섹션 그리드 */
 .vm__sections {
   display: flex;
-  flex-direction: column;   /* 위아래 배치 */
-  align-items: center;      /* 가로 가운데 정렬 */
-  gap: 24px;                /* 카드 사이 간격 */
+  flex-direction: column;  /* 위아래 배치 */
+  align-items: center;     /* 가로 가운데 정렬 */
+  gap: 24px;               /* 카드 사이 간격 */
   margin-top: 20px;
 }
 @media (min-width: 768px) {
@@ -174,7 +133,7 @@
   display: flex;
   justify-content: center;
   margin-top: -10px;
-  margin-bottom: 40px; 
+  margin-bottom: 40px;
 }
 
 .vm__start {
@@ -195,10 +154,334 @@
 .vm__start:hover { filter: brightness(1.03); box-shadow: 0 16px 32px rgba(61, 107, 255, .45); }
 .vm__start:active { transform: translateY(1px); }
 
+/* 반응형: 사이드바 폭은 Sidebar.css가 관리하므로 여기서도 auto 유지 */
 @media (max-width: 900px) {
-  .visit { grid-template-columns: 68px 1fr; }
-  .sb__brand { display: none; }
-  .sb__item { font-size: 14px; padding: 8px; }
+  .visit { grid-template-columns: auto 1fr; }
   .vm__container { width: min(720px, 92vw); }
   .vm__title { font-size: 20px; }
+}
+
+/* ===========================
+   (텔레메드 관련 공통 스타일)
+   =========================== */
+
+/* 상단 툴바 */
+.tele__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #e5e7eb;
+}
+.tele__room { display: flex; align-items: center; gap: 8px; }
+.tele__label { font-weight: 600; color: #374151; }
+
+.tele__input {
+  height: 40px;
+  border-radius: 8px;
+  border: 1px solid #d1d5db;
+  padding: 0 12px;
+  background: #fff;
+  font-size: 14px;
+}
+
+.tele__actions { display: flex; gap: 8px; margin-left: auto; }
+.tele__status { width: 100%; font-size: 13px; color: #6b7280; text-align: right; }
+
+/* 버튼 */
+.btn {
+  height: 40px;
+  padding: 0 16px;
+  border-radius: 8px;
+  font-weight: 700;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: all 0.2s;
+}
+.btn--ghost { border-color: #d1d5db; background: #fff; color: #374151; }
+.btn--ghost:hover { background: #f9fafb; border-color: #9ca3af; }
+
+.btn--primary {
+  background: linear-gradient(90deg, #3D46FF, #3D6BFF);
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(61, 107, 255, .2);
+}
+.btn--primary:hover { filter: brightness(1.05); }
+
+/* 비디오 영역 */
+.tele__videos {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+.tele__panel {
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, .07);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+}
+.tele__panel__title { font-weight: 600; margin-bottom: 8px; padding: 0 4px; color: #1f2937; }
+
+.tele__video__frame {
+  flex: 1;
+  min-height: 300px;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #e5e7eb;
+  position: relative;
+}
+.tele__video__frame video,
+.tele__video__frame canvas {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* 라이브 상태 오버레이 */
+.tele__live_status {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  background-color: rgba(0, 0, 0, 0.6);
+  color: white;
+  padding: 8px 12px;
+  font-size: 14px;
+  text-align: center;
+  border-bottom-left-radius: 12px;
+  border-bottom-right-radius: 12px;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+}
+
+/* 캡션 */
+.tele__caption {
+  margin-top: 10px;
+  padding: 10px;
+  min-height: 44px;
+  background: #f9fafb;
+  border-radius: 8px;
+  color: #111827;
+  font-weight: 500;
+}
+
+/* 환자 입력 영역 */
+.tele__patient__input_area {
+  margin-top: 16px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.tele__patient__input_area .tele__input { flex-grow: 1; }
+.tele__patient__input_area .btn--primary { flex-shrink: 0; }
+
+.tele__text__toolbar { margin-top: 16px; display: flex; justify-content: flex-start; }
+
+/* 반응형 */
+@media (max-width: 980px) {
+  .tele__videos { grid-template-columns: 1fr; }
+  .tele__actions { margin-left: 0; width: 100%; }
+}
+
+/* 채팅/영상 그리드 */
+.tele__grid{
+  display: grid;
+  grid-template-columns: 1fr 1.2fr; /* 좌:채팅, 우:영상(조금 더 넓게) */
+  gap: 24px;
+  margin-top: 16px;
+}
+
+/* 좌: 채팅 */
+.tele__chat{
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 2px 10px rgba(0,0,0,.06);
+  display: flex;
+  flex-direction: column;
+  min-height: 520px;
+  max-height: 70vh;
+  overflow: hidden;
+}
+.tele__chat__scroll{
+  padding: 16px;
+  overflow-y: auto;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* 말풍선 */
+.bubble{
+  display:block;
+  max-width: 80%;
+  padding: 10px 14px;
+  border-radius: 12px;
+  margin: 8px 0;
+  line-height: 1.45;
+  word-break: break-word;
+}
+.bubble--patient{ background:#fde7ea; color:#333; align-self:flex-start; }
+.bubble--doctor{ background:#e6f0ff; color:#222; align-self:flex-end; }
+.bubble--typing{ background:#f2f3f5; display:flex; gap:6px; align-items:center; }
+
+.typing__dot{
+  width:6px; height:6px; border-radius:50%; background:#bbb; display:inline-block;
+  animation: dotBlink 1.2s infinite ease-in-out;
+}
+.typing__dot--blue{ background:#6aa1ff; animation-delay:.2s; }
+@keyframes dotBlink{ 0%, 80%, 100% {opacity:.2} 40% {opacity:1} }
+
+.tele__sendbox{ padding: 12px 12px 16px; border-top: 1px solid #eee; }
+.tele__sendrow{ display:flex; gap:8px; }
+.tele__sendrow .tele__input{ flex:1; }
+
+/* 수어 미니 프리뷰(선택) */
+.tele__cam_mini{
+  margin: 8px 0 12px;
+  background:#fafafa;
+  border:1px dashed #ddd;
+  border-radius:12px;
+  padding:8px;
+}
+.tele__live_status{ font-size: 12px; color:#666; margin-top:6px; }
+
+/* 우: 영상 패널 */
+.tele__pane{
+  position: relative;
+  min-height: 520px;
+  max-height: 70vh;
+  background:#000;
+  border-radius:16px;
+  overflow:hidden;
+  box-shadow: 0 2px 10px rgba(0,0,0,.06);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+
+/* 내 영상(풀) */
+.tele__myvideo{ width:100%; height:100%; }
+.tele__video{
+  width:100%;
+  height:100%;
+  object-fit: cover;
+  display:block;
+  border:0;
+}
+.tele__video--mine{ border-radius:16px; }
+
+/* 상대 영상 PIP */
+.tele__pip{
+  position:absolute;
+  left:16px;
+  top:16px;
+  width: 28%;
+  aspect-ratio: 16/9;
+  border-radius: 12px;
+  overflow:hidden;
+  box-shadow: 0 6px 18px rgba(0,0,0,.25);
+  background:#111;
+}
+.tele__pip__label{
+  position:absolute; z-index:2; top:8px; left:8px;
+  padding:4px 8px; font-size:12px; color:#222;
+  background:#eee; border-radius:6px; opacity:.92;
+}
+.tele__video--pip{ width:100%; height:100%; object-fit: cover; }
+
+/* 우측 하단 툴바(버튼) */
+.tele__text__toolbar{
+  position: absolute;
+  right: 16px;
+  bottom: 16px;
+  display:flex; gap:8px;
+}
+
+/* 상단 툴바 여백 보정 */
+.tele__toolbar{ gap: 16px; }
+
+/* 반응형(좁은 화면) */
+@media (max-width: 1100px){
+  .tele__grid{ grid-template-columns: 1fr; }
+  .tele__pane{ min-height: 420px; }
+  .tele__pip{ width: 36%; }
+}
+
+/* 포즈/오버레이 */
+.tele__posebox { position: relative; width: 100%; margin-bottom: 12px; }
+.tele__pose_overlay { position: absolute; inset: 0; pointer-events: none; z-index: 3; }
+.tele__pose_overlay canvas {
+  position: absolute; inset: 0; width: 100%; height: 100%; display: block;
+  z-index: 3 !important; pointer-events: none;
+}
+
+/* 인식된 단어 배지 (비디오 안쪽) */
+.tele__live_badge{
+  position:absolute; left:16px; bottom:76px;
+  z-index:4; padding:8px 10px; background:rgba(0,0,0,.65);
+  color:#fff; font-size:14px; border-radius:12px; pointer-events:none;
+}
+
+/* 비디오 안쪽 입력 박스 오버레이 */
+.tele__input_overlay{
+  position:absolute; left:16px; right:16px; bottom:16px; z-index:4;
+  display:flex; align-items:center; gap:8px;
+  background:#fff; border-radius:12px; padding:12px 14px;
+  box-shadow:0 8px 20px rgba(0,0,0,.18);
+}
+.tele__input--overlay{ flex:1; height:40px; border:0; outline:none; background:transparent; font-size:15px; }
+.tele__input_clear{
+  width:32px; height:32px; border-radius:999px; border:1px solid #e5e7eb; background:#fff;
+  display:inline-flex; align-items:center; justify-content:center; font-size:18px; line-height:1;
+}
+
+/* 비디오 아래 큰 전송 버튼 */
+.tele__send_big{
+  width:100%; height:56px; border-radius:16px; background:#5b66ff; color:#fff;
+  font-weight:700; font-size:16px; box-shadow: 0 8px 24px rgba(91,102,255,.28); border:0;
+}
+.tele__send_big:hover{ filter:brightness(1.05); }
+
+/* 종료 모달 */
+.tele__end_modal__backdrop {
+  position: fixed; inset: 0;
+  background: rgba(17, 24, 39, 0.45);
+  backdrop-filter: saturate(120%) blur(2px);
+  z-index: 80; display: flex; align-items: center; justify-content: center;
+}
+.tele__end_modal {
+  width: min(560px, calc(100% - 32px));
+  background: #fff; border-radius: 16px; box-shadow: 0 20px 50px rgba(0,0,0,0.18);
+  padding: 28px 28px 24px; text-align: center;
+}
+.tele__end_modal__title { margin: 0 0 8px; font-size: 20px; font-weight: 800; color: #111827; }
+.tele__end_modal__desc { margin: 0 0 24px; font-size: 14px; color: #6b7280; }
+.tele__end_modal__actions { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.tele__end_modal__btn {
+  height: 56px; border-radius: 999px; font-weight: 700; font-size: 16px; cursor: pointer; border: 2px solid transparent;
+}
+.tele__end_modal__btn--outline { background: #fff; color: #4f46e5; border-color: #6366f1; }
+
+/* 메인 기준점 & 종료 버튼 */
+.visit .visit__main { position: relative; }
+.tele__end_btn{
+  position: absolute; top: 18px; right: 18px; z-index: 50;
+  height: 40px; padding: 0 16px; font-size: 14px; font-weight: 700; line-height: 40px;
+  border-radius: 999px; border: 2px solid #6366f1; background: #ffffff; color: #4f46e5;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+  cursor: pointer;
+  transition: transform .06s ease, box-shadow .2s ease, background .2s ease, color .2s ease;
+}
+.tele__end_btn:hover,
+.tele__end_btn:focus { background: #f8faff; box-shadow: 0 4px 16px rgba(0,0,0,0.10); outline: none; }
+.tele__end_btn:active { transform: translateY(1px); }
+.tele__end_btn:focus-visible { box-shadow: 0 0 0 4px rgba(99,102,241,0.25); }
+
+@media (max-width: 768px){
+  .tele__end_btn{
+    top: 12px; right: 12px; height: 36px; line-height: 36px; padding: 0 14px; font-size: 13px;
+  }
 }

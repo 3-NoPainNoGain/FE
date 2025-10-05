@@ -48,7 +48,7 @@ export default function TelemedHistoryPage() {
   }, [items]);
 
   return (
-    <div className="visit" style={{ "--sidebar-w": "220px" }}>
+    <div className="visit">
       <Sidebar />
       <main className="visit__main">
         <div className="vm__container">

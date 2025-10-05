@@ -1,6 +1,7 @@
+:root { --sb-width: 240px; }
 .visit {
   display: grid;
-  grid-template-columns: 220px 1fr;
+  grid-template-columns: var(--sb-width, 240px) 1fr;
   min-height: 100vh;
   background: #f7f7f8;
   font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;

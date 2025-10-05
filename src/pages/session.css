@@ -328,4 +328,32 @@
   gap: 20px;
 }
 
+/* Code Title: session.css – Pretendard 강제 적용 (페이지 스코프) */
+.session,
+.session * {
+  font-family: "Pretendard Variable", "Pretendard",
+               -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+               "Noto Sans KR", "Apple SD Gothic Neo",
+               "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol",
+               sans-serif !important; /* 다른 파일의 선언 덮어쓰기 */
+}
+
+
+/* ... (기존 스타일들) ... */
+
+/* ▼▼▼ [ADD] Pretendard 페이지 스코프 강제 적용 ▼▼▼ */
+/* visit 페이지 전체에 Pretendard를 1순위로 사용하게 함
+   - 전역(body) 또는 다른 페이지 CSS의 font-family 선언을 덮어쓰기 위해 !important 사용
+   - 나중에 전역 정리하면 !important 제거 가능 */
+.visit,
+.visit * {
+  font-family: "Pretendard Variable", "Pretendard",
+               -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+               "Noto Sans KR", "Apple SD Gothic Neo",
+               "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol",
+               sans-serif !important;
+}
+/* ▲▲▲ [ADD END] ▲▲▲ */
+
+/* ... (기존 스타일들) ... */
 

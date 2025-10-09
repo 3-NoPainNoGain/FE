@@ -61,7 +61,7 @@ export default function LandingPage() {
 
         <main className="landing__main">
           <section className="hero">
-            <h1 className="hero__title">손으로 소통하는 진료, Handoc</h1>
+            <h1 className="hero__title">손으로 소통하는 진료, handDoc</h1>
             <p className="hero__subtitle">병원 진료에 최적화된 솔루션</p>
           </section>
 

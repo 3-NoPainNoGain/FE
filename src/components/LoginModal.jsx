@@ -38,10 +38,10 @@ export default function LoginModal({ onClose, onOpenSignup }) {
           {handocLogo ? (
             <>
               <img className="brand__img" src={handocLogo} alt="Handoc" />
-              <span className="brand__name">Handoc</span>
+              <span className="brand__name">handDoc</span>
             </>
           ) : (
-            <span className="brand__name">Handoc</span>
+            <span className="brand__name">handDoc</span>
           )}
         </div>
 

@@ -5,7 +5,9 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { api } from "../auth/axios";
-import "./reservation-paper-modal.css"; // ⬅️ 모달 전용 스타일 (아래 3번 CSS 추가)
+import "./reservation-paper-modal.css"; // ⬅️ 모달 전용 스타일
+
+// 단독 옵션 처리가 필요 없으므로 OPTION_MAP은 제거합니다.
 
 // ✅ props
 // - reservationId: number | string (필수)
@@ -29,6 +31,7 @@ export default function ReservationPaperModal({ reservationId, onClose }) {
       try {
         setLoading(true);
         setErr("");
+        // NOTE: API로부터 받아오는 옵션 키는 대문자 VOICE_TO_TEXT, SIGN_TO_TEXT 등을 가정합니다.
         const { data } = await api.get(`/api/v2/reservation/${reservationId}`);
         if (!alive) return;
         setData(data?.results || null);
@@ -51,16 +54,43 @@ export default function ReservationPaperModal({ reservationId, onClose }) {
 
   // ReservationConfirm의 우측 카드와 동일한 데이터 보호/표기 방식
   const safe = useMemo(
-    () => ({
-      date: data?.slotDate || "",
-      time: data ? `${data.startTime} ~ ${data.endTime}` : "",
-      name: data?.name || "",
-      rrn: data?.residentId || "******-*******",
-      symptom: data?.symptom || "-",
-      symptomDuration: data?.symptomDuration ?? null,
-      description: (data?.description ?? "").trim() || "-",
-      selectedOptions: data?.selectedOptions ?? [], // BE에 있으면 사용, 없으면 아래에서 표시 처리
-    }),
+    () => {
+      const options = data?.selectedOptions ?? [];
+      let displayOption = "선택 없음"; // 기본값 설정
+
+      if (Array.isArray(options) && options.length > 0) {
+        // 옵션 배열을 정렬하여 순서에 관계없이 비교 가능하게 합니다.
+        const sortedOptions = [...options].sort();
+        const optionsStr = sortedOptions.join(",");
+
+        // 1. VOICE_TO_TEXT와 SIGN_TO_TEXT가 함께 있는 경우
+        if (optionsStr === "SIGN_TO_TEXT,VOICE_TO_TEXT") {
+            displayOption = "수어로 진료받기";
+        } 
+        // 2. VOICE_TO_TEXT만 단독으로 있는 경우
+        else if (optionsStr === "VOICE_TO_TEXT") {
+            displayOption = "음성으로 진료받기";
+        }
+        // 3. 기타 옵션 또는 정의되지 않은 옵션이 들어올 경우
+        // 이 조건 외에는 없다고 하셨으므로, 필요에 따라 여기에 다른 처리를 추가할 수 있습니다.
+        // 현재는 '선택 없음'을 피하기 위해 옵션들을 그대로 나열하도록 fallback 처리합니다.
+        else {
+             displayOption = options.join(", ");
+        }
+      }
+
+      return {
+        date: data?.slotDate || "",
+        time: data ? `${data.startTime} ~ ${data.endTime}` : "",
+        name: data?.name || "",
+        rrn: data?.residentId || "******-*******",
+        symptom: data?.symptom || "-",
+        symptomDuration: data?.symptomDuration ?? null,
+        description: (data?.description ?? "").trim() || "-",
+        // 선택된 옵션을 단일 문자열로 전달합니다.
+        displayOption: displayOption,
+      };
+    },
     [data]
   );
 
@@ -76,20 +106,20 @@ export default function ReservationPaperModal({ reservationId, onClose }) {
     
 
         {/* 원래 ReservationConfirm 우측 카드 스타일 그대로 */}
-         <section className="resv__card">
-   {/* 우상단 고정 닫기 버튼 */}
-   <button
-     className="rpmodal__close rpmodal__close--corner"
-     onClick={onClose}
-     aria-label="닫기"
-     title="닫기"
-   >
-     ✕
-   </button>
-   <header className="resv__cardhead">
-     <h2 className="resv__title">진료 신청서</h2>
-     <span className="resv__date">{safe.date}</span>
-   </header>
+          <section className="resv__card">
+    {/* 우상단 고정 닫기 버튼 */}
+    <button
+      className="rpmodal__close rpmodal__close--corner"
+      onClick={onClose}
+      aria-label="닫기"
+      title="닫기"
+    >
+      ✕
+    </button>
+    <header className="resv__cardhead">
+      <h2 className="resv__title">진료 신청서</h2>
+      <span className="resv__date">{safe.date}</span>
+    </header>
 
           <div className="resv__form">
             {loading && <p>불러오는 중…</p>}
@@ -121,14 +151,12 @@ export default function ReservationPaperModal({ reservationId, onClose }) {
                   <div className="form__value">{safe.description}</div>
                 </div>
 
-                {/* 선택한 기능: 기존 ReservationConfirm에서 state로 받던 항목이므로
-                    BE 데이터에 없다면 '선택 없음' 처리 */}
+                {/* 선택한 기능: 이제 safe.displayOption에 최종 문자열이 들어 있습니다. */}
                 <div className="form__row">
                   <label className="form__label">선택한 기능</label>
+                  {/* 기존 safe.selectedOptions.join(...) 대신 safe.displayOption을 사용합니다. */}
                   <div className="form__value">
-                    {Array.isArray(safe.selectedOptions) && safe.selectedOptions.length
-                      ? safe.selectedOptions.join(", ")
-                      : "선택 없음"}
+                    {safe.displayOption}
                   </div>
                 </div>
               </>

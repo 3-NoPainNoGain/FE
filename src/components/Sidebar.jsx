@@ -1,3 +1,4 @@
+// src/components/Sidebar.jsx
 import { NavLink, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { useAuth } from "../auth/AuthContext";
@@ -8,8 +9,8 @@ import "./Sidebar.css";
 export default function Sidebar() {
   const nav = useNavigate();
   const [openTele, setOpenTele] = useState(true);
-
   const [collapsed, setCollapsed] = useState(false);
+
   useEffect(() => {
     const saved = localStorage.getItem("sidebar:collapsed");
     if (saved != null) setCollapsed(saved === "true");
@@ -59,6 +60,7 @@ export default function Sidebar() {
       <hr className="sb__divider" />
 
       <nav className="sb__nav">
+        {/* 1) 대면 진료 */}
         <NavLink
           to="/prepare"
           end
@@ -69,6 +71,7 @@ export default function Sidebar() {
           <span className="sb__label">대면 진료</span>
         </NavLink>
 
+        {/* 2) 비대면 진료 (로그인 때만 표시, 드롭다운) */}
         {isLoggedIn && (
           <div className="sb__group">
             <div
@@ -127,6 +130,18 @@ export default function Sidebar() {
               </div>
             )}
           </div>
+        )}
+
+        {/* 3) 병원 지도 (로그인 필요) */}
+        {isLoggedIn && (
+          <NavLink
+            to="/hospital-map"
+            className={({ isActive }) => `sb__item${isActive ? " active" : ""}`}
+            title="병원 지도"
+          >
+            <span className="sb__arrow" />
+            <span className="sb__label">병원 지도</span>
+          </NavLink>
         )}
       </nav>
     </aside>

@@ -21,6 +21,8 @@ import TelemedSummaryPage from "./pages/TelemedSummaryPage";
 // 환자 뷰 - 비대면 진료 내역 목록 & 상세
 import TelemedHistoryPage from "./pages/TelemedHistoryPage";              
 import TelemedHistoryDetailPage from "./pages/TelemedHistoryDetailPage"; 
+import HospitalMapPage from "./pages/HospitalMapPage";
+
 
 export default function App() {
   return (
@@ -40,6 +42,10 @@ export default function App() {
           <Route path="/tele/doctor-list" element={<TeleDoctorList />} />
           <Route path="/tele/doctor/:doctorId" element={<TeleDoctorDetail />} />
           <Route path="/tele/apply/:doctorId" element={<TeleApplyWizard />} />
+
+           <Route path="/hospital-map" element={<HospitalMapPage />} />
+          {/* fallback */}
+          <Route path="*" element={<Navigate to="/" replace />} />
 
           {/* 예약 확인 */}
           <Route path="/reservation/confirm/:reservationId" element={<ReservationConfirm />} />

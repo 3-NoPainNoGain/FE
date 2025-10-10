@@ -1,10 +1,20 @@
+// src/pages/HospitalMapPage.jsx
+import Sidebar from "../components/Sidebar";
 import KakaoHospitalMap from "../components/KakaoHospitalMap";
 
 export default function HospitalMapPage() {
   return (
-    <div style={{ padding: 16 }}>
-      <h1 style={{ fontWeight: 800, fontSize: 20, marginBottom: 12 }}>병원 지도</h1>
-      <KakaoHospitalMap />
+    <div className="shell">
+      <Sidebar />
+      <main className="main">
+        <h1 style={{ fontWeight: 800, fontSize: 28, color: "#2C3E7F", margin: 0, marginBottom: 12 }}>
+          handDoc 제휴 병원
+        </h1>
+
+        <div style={{ height: "calc(100vh - 96px)" }}>
+          <KakaoHospitalMap />
+        </div>
+      </main>
     </div>
   );
 }

@@ -2,13 +2,6 @@ import { useEffect, useRef, useState } from "react";
 import "../styles/kakao-overlay.css";
 import pin from "../assets/handdoc-pin.svg";
 
-/**
- * props:
- * - center: { lat, lng }
- * - level: number
- * - hospitals: [{ id, name, lat, lng, addr?, phone? }]  // id 필수!
- */
-
 
 export default function KakaoHospitalMap({
   center = { lat: 37.4979, lng: 127.0276 },
@@ -33,7 +26,6 @@ export default function KakaoHospitalMap({
     kakaoRef.current = kakao;
 
     const init = () => {
-      // 지도 생성
       const map = new kakao.maps.Map(mapRef.current, {
         center: new kakao.maps.LatLng(center.lat, center.lng),
         level,
@@ -144,16 +136,19 @@ export default function KakaoHospitalMap({
     clearOverlay();
 
     const el = document.createElement("div");
-    el.className = "kakao-bubble";
-    el.innerHTML = `
-      <div class="title">${escapeHtml(item.name)}</div>
-      <div class="addr">${escapeHtml(item.addr ?? "")}</div>
-      <div class="phone">${escapeHtml(item.phone ?? "")}</div>
-      <div class="actions">
-        <button class="btn" data-act="detail">상세보기</button>
-        <button class="btn primary" data-act="reserve">진료신청</button>
+    el.className = "kakao-card";
+  const hours =
+    item.hours ?? item.openingHours ?? item.openHours ?? ""; 
+  el.innerHTML = `
+    <div class="title">${escapeHtml(item.name)}</div>
+    <div class="addr">${escapeHtml(item.addr ?? "")}</div>
+    <div class="meta">
+      <div class="hours">
+        <span class="dot"></span>
+        ${escapeHtml(hours || "영업시간 정보 없음")}
       </div>
-    `;
+    </div>
+  `;
 
     el.addEventListener("click", (e) => {
       const act = e.target?.getAttribute?.("data-act");
@@ -164,7 +159,8 @@ export default function KakaoHospitalMap({
     overlayRef.current = new kakao.maps.CustomOverlay({
       position,
       content: el,
-      yAnchor: 1.2,
+      xAnchor: 0.5,   
+ yAnchor: 1.8,
       zIndex: 5,
       clickable: true,
     });

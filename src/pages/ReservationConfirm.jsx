@@ -5,17 +5,21 @@ import { api } from "../auth/axios";
 import "./session.css";
 import "./tele-reservation.css";
 
+const EMPTY_OPTIONS = Object.freeze([]);
+
 export default function ReservationConfirm() {
   const { reservationId } = useParams();
   const nav = useNavigate();
   const { state } = useLocation();
-  const selectedOptions = state?.interpretationOption || [];
+  const selectedOptions = useMemo(
+    () => state?.interpretationOption ?? EMPTY_OPTIONS,
+    [state?.interpretationOption]
+  );
 
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
   const [data, setData] = useState(null);
 
-  // 이전 status 기억 → CONFIRMED 전환 감지용
   const prevStatusRef = useRef(null);
 
   const memoFromState = (state?.memo || "").trim();

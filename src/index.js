@@ -1,12 +1,12 @@
 // src/index.js
-import React from 'react'
-import ReactDOM from 'react-dom'
-import App from './App'
-import './index.css'   // FE/src에 없으면 새로 만들어주세요.
+import React from 'react';
+import ReactDOM from 'react-dom/client';
+import App from './App';
+import './index.css';
+// Provider 대신 Loader를 쓰거나(아래 3번), 이후에 다시 Provider로 바꿔도 됨
 
-ReactDOM.render(
+ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <App />
-  </React.StrictMode>,
-  document.getElementById('root')
-)
+  </React.StrictMode>
+);

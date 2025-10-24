@@ -1,10 +1,9 @@
-// KakaoHospitalMap.jsx — nearby API 연동 + 루프 방지(Idle suppress + Debounce + Abort)
-// 스타일: kakao-bubble, kakao-card, kakao-locate-btn 등
 import "../styles/kakao-overlay.css";
 import "../styles/map-overlay.css";
 import "../styles/hospital-map.css";
 import { useEffect, useRef, useState } from "react";
 import pin from "../assets/handdoc-pin.svg";
+import locateIcon from "../assets/locate.svg"; 
 
 const API_BASE = process.env.REACT_APP_API_BASE || "";
 const ENDPOINT = `${API_BASE}/api/v3/map/nearby`;
@@ -23,9 +22,9 @@ export default function KakaoHospitalMap({
 
   const [hospitals, setHospitals] = useState([]);
 
-  // 🔒 setBounds → idle 루프 방지 + 디바운스
   const suppressIdleRef = useRef(false);
   const idleTimerRef = useRef(null);
+  const hasFitBounds = useRef(false);
 
   useEffect(() => {
     if (!mapRef.current) return;
@@ -39,10 +38,8 @@ export default function KakaoHospitalMap({
     const map = new kakao.maps.Map(mapRef.current, { center, level: defaultLevel });
     mapObjRef.current = map;
 
-    // 초기 1회
     fetchAndRender(map);
 
-    // idle (디바운스 + suppress)
     kakao.maps.event.addListener(map, "idle", () => {
       if (suppressIdleRef.current) {
         suppressIdleRef.current = false;
@@ -59,23 +56,18 @@ export default function KakaoHospitalMap({
       clearInfoWindows();
       mapObjRef.current = null;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ---- 진행 중 요청 취소
   function abortInFlight() {
     try {
       inFlightCtrlRef.current?.abort();
     } catch (err) {
-      if (typeof console !== "undefined") {
-        console.warn("[AbortInFlightError]", err);
-      }
+      console.warn("[AbortInFlightError]", err);
     } finally {
       inFlightCtrlRef.current = null;
     }
   }
 
-  // ---- API 호출 + 렌더
   async function fetchAndRender(map) {
     try {
       const c = map.getCenter();
@@ -104,13 +96,10 @@ export default function KakaoHospitalMap({
         signal: ctrl.signal,
       });
 
-      console.log("[REQ]", url);
-      console.log("[RES]", res.status, res.headers.get("content-type"));
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
       const data = await res.json();
       const list = data?.results?.hospitals ?? [];
-      console.log("[LEN]", list.length, list.slice(0, 3));
       setHospitals(list);
       renderMarkers(list, map);
     } catch (e) {
@@ -124,18 +113,17 @@ export default function KakaoHospitalMap({
     }
   }
 
-  // ---- 마커 렌더링
   function renderMarkers(list, map) {
     const { kakao } = window;
     if (!kakao?.maps || !map) return;
 
     clearMarkers();
     clearInfoWindows();
+
     if (!list?.length) return;
 
     const bounds = new kakao.maps.LatLngBounds();
 
-    // ✅ 로고 핀 이미지(표시 크기/기준점은 로고에 맞게 조정)
     const markerImage = new kakao.maps.MarkerImage(
       pin,
       new kakao.maps.Size(40, 52),
@@ -153,12 +141,10 @@ export default function KakaoHospitalMap({
         position: pos,
         image: markerImage,
       });
-
       marker.setMap(map);
       markersRef.current.push(marker);
       bounds.extend(pos);
 
-      // 👉 오늘 영업시간/상태
       const hours = getTodayHours(h.operatingHours);
       const dotColor = hours ? (hours.isOpen ? "#10B981" : "#EF4444") : "#9CA3AF";
       const hoursText = hours
@@ -167,12 +153,20 @@ export default function KakaoHospitalMap({
 
       const iw = new kakao.maps.InfoWindow({
         content: `
-          <div class="kakao-card">
-            <h4 class="title">${escapeHtml(h.name ?? "병원")}</h4>
-            <p class="addr">${escapeHtml(h.address ?? "")}</p>
-            <div class="meta">
-              <div class="hours">
-                <span class="dot" style="background:${dotColor}"></span>${hoursText}
+          <div style="
+            border-radius:14px;
+            overflow:hidden;
+            border:1px solid #e5e7eb;
+            background:#fff;
+            box-shadow:0 8px 24px rgba(0,0,0,0.18);
+          ">
+            <div class="kakao-card" style="border:none; box-shadow:none; margin:0;">
+              <h4 class="title">${escapeHtml(h.name ?? "병원")}</h4>
+              <p class="addr">${escapeHtml(h.address ?? "")}</p>
+              <div class="meta">
+                <div class="hours">
+                  <span class="dot" style="background:${dotColor}"></span>${hoursText}
+                </div>
               </div>
             </div>
           </div>
@@ -181,7 +175,6 @@ export default function KakaoHospitalMap({
       infoWindowsRef.current.push(iw);
 
       kakao.maps.event.addListener(marker, "click", () => {
-        // 기존 창 닫고 이 마커만
         infoWindowsRef.current.forEach((win) => {
           if (typeof win.close === "function") win.close();
           else if (typeof win.setMap === "function") win.setMap(null);
@@ -190,40 +183,66 @@ export default function KakaoHospitalMap({
       });
     });
 
-    // 🔑 setBounds 이후 idle 1회 무시 → 루프 차단
-    if (!bounds.isEmpty()) {
+    if (!bounds.isEmpty() && !hasFitBounds.current) {
       suppressIdleRef.current = true;
       map.setBounds(bounds);
+      hasFitBounds.current = true;
     }
   }
 
-  // ---- 정리 유틸
+  function moveToMyLocation() {
+    const { kakao } = window;
+    if (!navigator.geolocation) {
+      alert("이 브라우저에서는 위치 정보를 지원하지 않습니다.");
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
+        const loc = new kakao.maps.LatLng(lat, lng);
+        mapObjRef.current.setCenter(loc);
+
+        new kakao.maps.Marker({
+  position: loc,
+  map: mapObjRef.current,
+});
+      },
+      (err) => {
+        console.error(err);
+        alert("위치 정보를 가져올 수 없습니다.");
+      }
+    );
+  }
+
   function clearMarkers() {
-    markersRef.current.forEach((m) => {
-      if (m && typeof m.setMap === "function") m.setMap(null);
-    });
+    markersRef.current.forEach((m) => m?.setMap?.(null));
     markersRef.current = [];
   }
   function clearInfoWindows() {
-    infoWindowsRef.current.forEach((iw) => {
-      if (!iw) return;
-      if (typeof iw.close === "function") iw.close();
-      else if (typeof iw.setMap === "function") iw.setMap(null);
-    });
+    infoWindowsRef.current.forEach((iw) => iw?.close?.());
     infoWindowsRef.current = [];
   }
 
   return (
-    <div style={{ width: "100%", height: "100%" }}>
+    <div style={{ width: "100%", height: "100%", position: "relative" }}>
       <div ref={mapRef} style={style} />
       <div style={{ padding: "6px 0", fontSize: 12, color: "#666" }}>
         표시 중 병원 수: {hospitals.length}
       </div>
+
+      <button
+        className="kakao-locate-btn"
+        onClick={moveToMyLocation}
+        title="내 위치로 이동"
+      >
+        <img src={locateIcon} alt="내 위치" />
+      </button>
     </div>
   );
 }
 
-// ---------- 유틸: 오늘 영업시간/상태 ----------
 function getTodayHours(operatingHours) {
   if (!Array.isArray(operatingHours) || operatingHours.length === 0) return null;
   const days = ["SUNDAY","MONDAY","TUESDAY","WEDNESDAY","THURSDAY","FRIDAY","SATURDAY"];

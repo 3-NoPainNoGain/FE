@@ -1,297 +1,275 @@
-import { useEffect, useRef, useState, useCallback } from "react";
 import "../styles/kakao-overlay.css";
+import "../styles/map-overlay.css";
+import "../styles/hospital-map.css";
+import { useEffect, useRef, useState } from "react";
+import pin from "../assets/handdoc-pin.svg";
+import locateIcon from "../assets/locate.svg"; 
 
-import pin from "../assets/handdoc-pin.svg";     
-
-import locateIcon from "../assets/locate.svg";   
+const API_BASE = process.env.REACT_APP_API_BASE || "";
+const ENDPOINT = `${API_BASE}/api/v3/map/nearby`;
 
 export default function KakaoHospitalMap({
-  center = { lat: 37.4979, lng: 127.0276 },
-  level = 4,
-  hospitals = [],
+  defaultCenter = { lat: 37.5665, lng: 126.978 },
+  defaultLevel = 5,
+  radiusKm = 20,
+  style = { width: "100%", height: "600px" },
 }) {
   const mapRef = useRef(null);
-  const mapInstanceRef = useRef(null);
-  const kakaoRef = useRef(null);
-
+  const mapObjRef = useRef(null);
   const markersRef = useRef([]);
-  const overlayRef = useRef(null);
-  const [selectedId, setSelectedId] = useState(null);
-  const [hoverId, setHoverId] = useState(null);
+  const infoWindowsRef = useRef([]);
+  const inFlightCtrlRef = useRef(null);
 
-  const userPosRef = useRef(null);
-  const userMarkerRef = useRef(null);
-  const userCircleRef = useRef(null);
-  const initialCenterRef = useRef(center);
+  const [hospitals, setHospitals] = useState([]);
 
-  useEffect(() => {
-    initialCenterRef.current = center;
-  }, [center]);
-
-  // 카드 제거
-  const clearOverlay = useCallback(() => {
-    if (overlayRef.current) {
-      overlayRef.current.setMap(null);
-      overlayRef.current = null;
-    }
-  }, []);
-
-  const escapeHtml = (str) =>
-    String(str ?? "")
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;")
-      .replace(/'/g, "&#039;");
-
-  const showOverlay = useCallback(
-    (item, position, map) => {
-      const kakao = kakaoRef.current;
-      if (!kakao) return;
-
-      clearOverlay();
-
-      const el = document.createElement("div");
-      el.className = "kakao-card";
-      const hours = item.hours ?? item.openingHours ?? item.openHours ?? "";
-      el.innerHTML = `
-        <div class="title">${escapeHtml(item.name)}</div>
-        <div class="addr">${escapeHtml(item.addr ?? "")}</div>
-        <div class="meta">
-          <div class="hours"><span class="dot"></span>${escapeHtml(hours || "09:00 - 17:00")}</div>
-        </div>
-      `;
-
-      overlayRef.current = new kakao.maps.CustomOverlay({
-        position,
-        content: el,
-        xAnchor: 0.5,
-        yAnchor: 1.9,  
-        zIndex: 5,
-        clickable: true,
-      });
-      overlayRef.current.setMap(map);
-    },
-    [clearOverlay]
-  );
-
-  const cleanupMarkers = useCallback(() => {
-    markersRef.current.forEach((m) => m.setMap(null));
-    markersRef.current = [];
-  }, []);
+  const suppressIdleRef = useRef(false);
+  const idleTimerRef = useRef(null);
+  const hasFitBounds = useRef(false);
 
   useEffect(() => {
-    if (!window.kakao || !window.kakao.maps) {
-      console.warn("Kakao SDK not ready.");
+    if (!mapRef.current) return;
+    const { kakao } = window;
+    if (!kakao?.maps) {
+      console.error("[Kakao] kakao.maps 가 로드되지 않음");
       return;
     }
-    const { kakao } = window;
-    kakaoRef.current = kakao;
 
-    const init = () => {
-      const map = new kakao.maps.Map(mapRef.current, {
-        center: new kakao.maps.LatLng(center.lat, center.lng),
-        level,
-      });
-      mapInstanceRef.current = map;
+    const center = new kakao.maps.LatLng(defaultCenter.lat, defaultCenter.lng);
+    const map = new kakao.maps.Map(mapRef.current, { center, level: defaultLevel });
+    mapObjRef.current = map;
 
-      cleanupMarkers();
-      clearOverlay();
+    fetchAndRender(map);
 
-      const normalMarkerImage = new kakao.maps.MarkerImage(
-        pin,
-        new kakao.maps.Size(48, 64),
-        { offset: new kakao.maps.Point(24, 64) }
-      );
-      const selectedMarkerImage = new kakao.maps.MarkerImage(
-        pin,
-        new kakao.maps.Size(72, 96),
-        { offset: new kakao.maps.Point(36, 96) }
-      );
-
-      const items = hospitals.length
-        ? hospitals
-        : [{ id: "smoke", name: "테스트 마커", lat: center.lat, lng: center.lng, addr: "", hours: "" }];
-
-      markersRef.current = items.map((h) => {
-        const pos = new kakao.maps.LatLng(h.lat, h.lng);
-        const marker = new kakao.maps.Marker({
-          position: pos,
-          map,
-          image: normalMarkerImage,
-          clickable: true,
-          zIndex: 3,
-        });
-
-        kakao.maps.event.addListener(marker, "mouseover", () => {
-          if (!selectedId) {
-            setHoverId(h.id);
-            showOverlay(h, pos, map);
-          }
-        });
-        kakao.maps.event.addListener(marker, "mouseout", () => {
-          setHoverId((prev) => (prev === h.id ? null : prev));
-          if (!selectedId) clearOverlay();
-        });
-        kakao.maps.event.addListener(marker, "click", () => {
-          setSelectedId((prev) => (prev === h.id ? null : h.id));
-          showOverlay(h, pos, map);
-        });
-
-        marker._id = h.id;
-        marker._data = h;
-        marker._pos = pos;
-        marker._normal = normalMarkerImage;
-        marker._selected = selectedMarkerImage;
-        return marker;
-      });
-
-      if (markersRef.current.length > 0) {
-        const bounds = new kakao.maps.LatLngBounds();
-        markersRef.current.forEach((m) => bounds.extend(m._pos));
-        map.setBounds(bounds);
+    kakao.maps.event.addListener(map, "idle", () => {
+      if (suppressIdleRef.current) {
+        suppressIdleRef.current = false;
+        return;
       }
-
-      kakao.maps.event.addListener(map, "click", () => {
-        setSelectedId(null);
-        setHoverId(null);
-        clearOverlay();
-      });
-    };
-
-    if (typeof kakao.maps.load === "function") kakao.maps.load(init);
-    else init();
-
-    return () => {
-      cleanupMarkers();
-      clearOverlay();
-      if (userMarkerRef.current) userMarkerRef.current.setMap(null);
-      if (userCircleRef.current) userCircleRef.current.setMap(null);
-      mapInstanceRef.current = null;
-    };
-  }, [center.lat, center.lng, level, hospitals, cleanupMarkers, clearOverlay, showOverlay, selectedId]);
-
-  useEffect(() => {
-    const kakao = kakaoRef.current;
-    const map = mapInstanceRef.current;
-    if (!kakao || !map) return;
-
-    const visibleId = selectedId ?? hoverId;
-
-    markersRef.current.forEach((m) => {
-      if (m._id === selectedId) m.setImage(m._selected);
-      else m.setImage(m._normal);
+      if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
+      idleTimerRef.current = setTimeout(() => fetchAndRender(map), 400);
     });
 
-    if (visibleId) {
-      const m = markersRef.current.find((mm) => mm._id === visibleId);
-      if (m) showOverlay(m._data, m._pos, map);
-    } else {
-      clearOverlay();
+    return () => {
+      if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
+      abortInFlight();
+      clearMarkers();
+      clearInfoWindows();
+      mapObjRef.current = null;
+    };
+  }, []);
+
+  function abortInFlight() {
+    try {
+      inFlightCtrlRef.current?.abort();
+    } catch (err) {
+      console.warn("[AbortInFlightError]", err);
+    } finally {
+      inFlightCtrlRef.current = null;
     }
-  }, [selectedId, hoverId, showOverlay, clearOverlay]);
+  }
 
-  function locateNow() {
-    const kakao = kakaoRef.current;
-    const map = mapInstanceRef.current;
-    if (!kakao || !map) return;
+  async function fetchAndRender(map) {
+    try {
+      const c = map.getCenter();
+      const lat = c.getLat();
+      const lng = c.getLng();
 
-    if (!("geolocation" in navigator)) {
-      alert("이 브라우저는 위치 인식을 지원하지 않아요.");
+      const params = new URLSearchParams({
+        latitude: lat,
+        longitude: lng,
+        lat: lat,
+        lng: lng,
+        radiusKm: String(radiusKm),
+        page: "0",
+        size: "300",
+        sort: "distance",
+      });
+
+      const url = `${ENDPOINT}?${params.toString()}`;
+
+      abortInFlight();
+      const ctrl = new AbortController();
+      inFlightCtrlRef.current = ctrl;
+
+      const res = await fetch(url, {
+        headers: { Accept: "application/json" },
+        signal: ctrl.signal,
+      });
+
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+      const data = await res.json();
+      const list = data?.results?.hospitals ?? [];
+      setHospitals(list);
+      renderMarkers(list, map);
+    } catch (e) {
+      if (e?.name !== "AbortError") {
+        console.error("[HospitalFetchError]", e);
+        setHospitals([]);
+        renderMarkers([], mapObjRef.current);
+      }
+    } finally {
+      inFlightCtrlRef.current = null;
+    }
+  }
+
+  function renderMarkers(list, map) {
+    const { kakao } = window;
+    if (!kakao?.maps || !map) return;
+
+    clearMarkers();
+    clearInfoWindows();
+
+    if (!list?.length) return;
+
+    const bounds = new kakao.maps.LatLngBounds();
+
+    const markerImage = new kakao.maps.MarkerImage(
+      pin,
+      new kakao.maps.Size(40, 52),
+      { offset: new kakao.maps.Point(20, 52) }
+    );
+
+    list.forEach((h) => {
+      const lat = h.latitude ?? h.lat;
+      const lng = h.longitude ?? h.lng;
+      if (lat == null || lng == null) return;
+
+      const pos = new kakao.maps.LatLng(lat, lng);
+
+      const marker = new kakao.maps.Marker({
+        position: pos,
+        image: markerImage,
+      });
+      marker.setMap(map);
+      markersRef.current.push(marker);
+      bounds.extend(pos);
+
+      const hours = getTodayHours(h.operatingHours);
+      const dotColor = hours ? (hours.isOpen ? "#10B981" : "#EF4444") : "#9CA3AF";
+      const hoursText = hours
+        ? `오늘 ${escapeHtml(hours.label)} ${hours.isOpen ? "(영업중)" : "(영업종료)"}`
+        : "영업 시간 정보 없음";
+
+      const iw = new kakao.maps.InfoWindow({
+        content: `
+          <div style="
+            border-radius:14px;
+            overflow:hidden;
+            border:1px solid #e5e7eb;
+            background:#fff;
+            box-shadow:0 8px 24px rgba(0,0,0,0.18);
+          ">
+            <div class="kakao-card" style="border:none; box-shadow:none; margin:0;">
+              <h4 class="title">${escapeHtml(h.name ?? "병원")}</h4>
+              <p class="addr">${escapeHtml(h.address ?? "")}</p>
+              <div class="meta">
+                <div class="hours">
+                  <span class="dot" style="background:${dotColor}"></span>${hoursText}
+                </div>
+              </div>
+            </div>
+          </div>
+        `,
+      });
+      infoWindowsRef.current.push(iw);
+
+      kakao.maps.event.addListener(marker, "click", () => {
+        infoWindowsRef.current.forEach((win) => {
+          if (typeof win.close === "function") win.close();
+          else if (typeof win.setMap === "function") win.setMap(null);
+        });
+        iw.open(map, marker);
+      });
+    });
+
+    if (!bounds.isEmpty() && !hasFitBounds.current) {
+      suppressIdleRef.current = true;
+      map.setBounds(bounds);
+      hasFitBounds.current = true;
+    }
+  }
+
+  function moveToMyLocation() {
+    const { kakao } = window;
+    if (!navigator.geolocation) {
+      alert("이 브라우저에서는 위치 정보를 지원하지 않습니다.");
       return;
     }
 
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        const { latitude, longitude, accuracy } = pos.coords;
-        const latlng = new kakao.maps.LatLng(latitude, longitude);
-        userPosRef.current = latlng;
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
+        const loc = new kakao.maps.LatLng(lat, lng);
+        mapObjRef.current.setCenter(loc);
 
-        if (userMarkerRef.current) userMarkerRef.current.setMap(null);
-        if (userCircleRef.current) userCircleRef.current.setMap(null);
-
-        userMarkerRef.current = new kakao.maps.Marker({
-          position: latlng,
-          map,
-          zIndex: 6,
-          image: new kakao.maps.MarkerImage(
-            'data:image/svg+xml;utf8,' +
-              encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18">
-                <circle cx="9" cy="9" r="6" fill="#2563EB" fill-opacity="0.95"/>
-                <circle cx="9" cy="9" r="9" fill="#2563EB" fill-opacity="0.18"/>
-              </svg>`),
-            new kakao.maps.Size(18, 18),
-            { offset: new kakao.maps.Point(9, 9) }
-          ),
-        });
-
-        userCircleRef.current = new kakao.maps.Circle({
-          center: latlng,
-          radius: Math.max(accuracy || 60, 30), 
-          strokeWeight: 1,
-          strokeColor: "#2563EB",
-          strokeOpacity: 0.4,
-          strokeStyle: "solid",
-          fillColor: "#60A5FA",
-          fillOpacity: 0.12,
-        });
-        userCircleRef.current.setMap(map);
-
-        try { map.panTo(latlng); } catch { map.setCenter(latlng); }
+        new kakao.maps.Marker({
+  position: loc,
+  map: mapObjRef.current,
+});
       },
       (err) => {
-        console.warn("Geolocation failed:", err?.code, err?.message);
-        const fallback = new kakao.maps.LatLng(
-          initialCenterRef.current.lat,
-          initialCenterRef.current.lng
-        );
-        try { map.panTo(fallback); } catch { map.setCenter(fallback); }
-        alert("현재 위치를 가져올 수 없어요. 브라우저 권한을 확인해 주세요.");
-      },
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
+        console.error(err);
+        alert("위치 정보를 가져올 수 없습니다.");
+      }
     );
   }
 
+  function clearMarkers() {
+    markersRef.current.forEach((m) => m?.setMap?.(null));
+    markersRef.current = [];
+  }
+  function clearInfoWindows() {
+    infoWindowsRef.current.forEach((iw) => iw?.close?.());
+    infoWindowsRef.current = [];
+  }
+
   return (
-  <div className="kakao-map-wrap" style={{ position: "relative", width: "100%", height: "100%" }}>
-    <div ref={mapRef} style={{ width: "100%", height: "100%" }} />
+    <div style={{ width: "100%", height: "100%", position: "relative" }}>
+      <div ref={mapRef} style={style} />
+      <div style={{ padding: "6px 0", fontSize: 12, color: "#666" }}>
+        표시 중 병원 수: {hospitals.length}
+      </div>
 
-    <button
-  type="button"
-  className="kakao-locate-btn"
-  onClick={locateNow}
-  title="현재 위치로 이동"
-  style={{
-    position: "absolute",
-    right: 12,
-    bottom: 12,
-    width: 36,
-    height: 36,
-    padding: 0,
-    borderRadius: 10,
-    zIndex: 2147483647,
-    display: "grid",
-    placeItems: "center",
-    lineHeight: 0,
-  }}
->
-  <img
-    src={locateIcon}
-    alt="현재 위치로 이동"
-    style={{
-      width: 16,
-      height: 16,
-      display: "block",
-      margin: "auto",    
-      objectFit: "contain",
-     
-    }}
-  />
-</button>
+      <button
+        className="kakao-locate-btn"
+        onClick={moveToMyLocation}
+        title="내 위치로 이동"
+      >
+        <img src={locateIcon} alt="내 위치" />
+      </button>
+    </div>
+  );
+}
 
-  </div>
-);
+function getTodayHours(operatingHours) {
+  if (!Array.isArray(operatingHours) || operatingHours.length === 0) return null;
+  const days = ["SUNDAY","MONDAY","TUESDAY","WEDNESDAY","THURSDAY","FRIDAY","SATURDAY"];
+  const todayKey = days[new Date().getDay()];
+  const row = operatingHours.find((d) => d.day === todayKey);
+  if (!row || !row.openTime || !row.closeTime) return null;
 
+  const toMin = (t) => {
+    const [h, m] = String(t).split(":").map(Number);
+    return h * 60 + (m || 0);
+  };
+  const nowMin = new Date().getHours() * 60 + new Date().getMinutes();
+  const openMin = toMin(row.openTime);
+  const closeMin = toMin(row.closeTime);
 
+  return {
+    label: `${row.openTime} - ${row.closeTime}`,
+    isOpen: nowMin >= openMin && nowMin <= closeMin,
+  };
+}
 
+function escapeHtml(str) {
+  if (typeof str !== "string") return "";
+  return str
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
 }

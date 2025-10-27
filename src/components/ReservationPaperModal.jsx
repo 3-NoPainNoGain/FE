@@ -53,46 +53,53 @@ export default function ReservationPaperModal({ reservationId, onClose }) {
   }, [reservationId]);
 
   // ReservationConfirm의 우측 카드와 동일한 데이터 보호/표기 방식
-  const safe = useMemo(
-    () => {
-      const options = data?.selectedOptions ?? [];
-      let displayOption = "선택 없음"; // 기본값 설정
+  // ReservationConfirm의 우측 카드와 동일한 데이터 보호/표기 방식
+const safe = useMemo(() => {
+  // --- 1) 원시 옵션값을 어떤 형태로 와도 배열로 정규화 ---
+  const raw = data?.selectedOptions;
+  let opts = [];
+  if (Array.isArray(raw)) {
+    opts = raw;
+  } else if (typeof raw === "string" && raw.trim()) {
+    // "VOICE_TO_TEXT" 또는 "VOICE_TO_TEXT,SIGN_TO_TEXT" 같은 형태 방지
+    opts = raw.split(","); 
+  }
+  // 대문자 + 공백제거로 정규화
+  const norm = opts
+    .map((v) => String(v).trim().toUpperCase())
+    .filter(Boolean);
 
-      if (Array.isArray(options) && options.length > 0) {
-        // 옵션 배열을 정렬하여 순서에 관계없이 비교 가능하게 합니다.
-        const sortedOptions = [...options].sort();
-        const optionsStr = sortedOptions.join(",");
+  // --- 2) 의미 매핑 (단일/복합 모두 처리) ---
+  // 규칙: SIGN_TO_TEXT만 선택 or SIGN_TO_TEXT 포함 → "수어로 진료받기"
+  //       VOICE_TO_TEXT만 → "음성으로 진료받기"
+  //       그 외 → 원문 나열
+  let displayOption = "선택 없음";
+  if (norm.length > 0) {
+    const hasVoice = norm.includes("VOICE_TO_TEXT");
+    const hasSign  = norm.includes("SIGN_TO_TEXT");
+    if (hasVoice && hasSign) {
+      displayOption = "수어로 진료받기";
+    } else if (hasVoice) {
+      displayOption = "음성으로 진료받기";
+    } else if (hasSign) {
+      displayOption = "수어로 진료받기";
+    } else {
+      displayOption = norm.join(", "); // 미정의 키는 그대로 노출
+    }
+  }
 
-        // 1. VOICE_TO_TEXT와 SIGN_TO_TEXT가 함께 있는 경우
-        if (optionsStr === "SIGN_TO_TEXT,VOICE_TO_TEXT") {
-            displayOption = "수어로 진료받기";
-        } 
-        // 2. VOICE_TO_TEXT만 단독으로 있는 경우
-        else if (optionsStr === "VOICE_TO_TEXT") {
-            displayOption = "음성으로 진료받기";
-        }
-        // 3. 기타 옵션 또는 정의되지 않은 옵션이 들어올 경우
-        // 이 조건 외에는 없다고 하셨으므로, 필요에 따라 여기에 다른 처리를 추가할 수 있습니다.
-        // 현재는 '선택 없음'을 피하기 위해 옵션들을 그대로 나열하도록 fallback 처리합니다.
-        else {
-             displayOption = options.join(", ");
-        }
-      }
+  return {
+    date: data?.slotDate || "",
+    time: data ? `${data.startTime} ~ ${data.endTime}` : "",
+    name: data?.name || "",
+    rrn: data?.residentId || "******-*******",
+    symptom: data?.symptom || "-",
+    symptomDuration: data?.symptomDuration ?? null,
+    description: (data?.description ?? "").trim() || "-",
+    displayOption,
+  };
+}, [data]);
 
-      return {
-        date: data?.slotDate || "",
-        time: data ? `${data.startTime} ~ ${data.endTime}` : "",
-        name: data?.name || "",
-        rrn: data?.residentId || "******-*******",
-        symptom: data?.symptom || "-",
-        symptomDuration: data?.symptomDuration ?? null,
-        description: (data?.description ?? "").trim() || "-",
-        // 선택된 옵션을 단일 문자열로 전달합니다.
-        displayOption: displayOption,
-      };
-    },
-    [data]
-  );
 
   return (
     <div className="rpmodal__backdrop" onClick={onClose}>

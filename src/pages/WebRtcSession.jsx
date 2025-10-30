@@ -13,6 +13,7 @@ import { connectSignalingWS } from "../webrtc/signaling";
 import { joinReservation } from "../services/reservation";
 import { ENABLE_GUEST_MODE } from "../config";
 import { createBrowserSTT } from "../services/stt";
+import { api } from "../services/api";
 import {
   sendSignTextToDB,
   sendSpeechToDB,
@@ -114,7 +115,7 @@ export default function WebRtcSession() {
   const enableSign = selectedOptions.includes("SIGN_TO_TEXT");
 
   // GPT 발음교정(음성 모드 전용) 전달값
-  const [enableGpt, setEnableGpt] = useState(state?.gptCorrection === true);
+const [enableGpt, setEnableGpt] = useState(null);
 
   // 세션 키
   const myKeyRef = useRef(null);
@@ -154,6 +155,9 @@ export default function WebRtcSession() {
 
   // 후보 선택 모달 상태(GPT 교정)
   const [candidates, setCandidates] = useState(null); // null | string[]
+    // 선택된 후보 문장 상태
+  const [selectedCandidate, setSelectedCandidate] = useState(null);
+
 
   // STT/REC
   const sttRef = useRef(null);
@@ -702,6 +706,54 @@ export default function WebRtcSession() {
   useEffect(() => {
     if (ridParam) setReservationId(String(ridParam));
   }, [ridParam]);
+useEffect(() => {
+  if (!reservationId) return;
+
+  (async function fetchVoiceMode() {
+    try {
+      const token = localStorage.getItem("accessToken");
+      const res = await api.get(`/api/v2/reservation/${reservationId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      // ✅ Proxy나 state 레퍼런스 문제 방지: 완전 복사
+      const results = JSON.parse(JSON.stringify(res?.data?.results || {}));
+      console.log("[예약 정보 results 복사본]", results);
+
+      const option =
+  results?.interpretationOption ||
+  results?.interpertationOption || "";
+console.log("[예약 옵션 확인 결과]", option);
+
+      if (!option) {
+        console.warn("⚠️ interpretationOption 필드 없음 → NORMAL로 처리");
+        setEnableGpt(false);
+        return;
+      }
+
+      switch (option) {
+        case "ABNORMAL_VOICE_TO_TEXT":
+          console.log("✅ 발음 보조 모드 활성화 (GPT 후보 추천)");
+          setEnableGpt(true);
+          break;
+        case "NORMAL_VOICE_TO_TEXT":
+          console.log("🟢 일반 음성 인식 모드");
+          setEnableGpt(false);
+          break;
+        case "SIGN_TO_TEXT":
+          console.log("🟣 수어 모드 활성화");
+          setEnableGpt(false);
+          break;
+        default:
+          console.warn("🟡 알 수 없는 옵션:", option);
+          setEnableGpt(false);
+      }
+    } catch (err) {
+      console.debug("[fetchVoiceMode 실패(무시)]:", err);
+      setEnableGpt(false);
+    }
+  })();
+}, [reservationId]);
 
   /* 세션 저장된 gpt 토글 복원 */
   useEffect(() => {
@@ -718,12 +770,11 @@ export default function WebRtcSession() {
   /* 자동 참가 */
   const autoJoinRef = useRef(false);
   useEffect(() => {
-    if (!reservationId || autoJoinRef.current) return;
-    autoJoinRef.current = true;
-    const which = roleHint === "doctor" ? "doctor" : "patient";
-    joinAs(which);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [reservationId, roleHint]);
+  if (!reservationId || autoJoinRef.current || enableGpt === null) return;
+  autoJoinRef.current = true;
+  const which = roleHint === "doctor" ? "doctor" : "patient";
+  joinAs(which);
+}, [reservationId, roleHint, enableGpt]);
 
   /* ----- 종료 버튼/모달 핸들러 ----- */
   const onClickEnd = useCallback(() => setShowEndModal(true), []);
@@ -871,44 +922,103 @@ export default function WebRtcSession() {
 
         {/* GPT 후보 선택 모달 */}
         {Array.isArray(candidates) && candidates.length > 0 && (
-          <div className="tele__end_modal__backdrop" role="presentation">
-            <div
-              className="tele__end_modal"
-              role="dialog"
-              aria-modal="true"
-              aria-labelledby="candTitle"
-            >
-              <h3 id="candTitle" className="tele__end_modal__title">
-                가장 가까운 문장을 선택해 주세요
-              </h3>
-              <div className="tele__end_modal__desc">
-                환경과 맥락을 반영한 3가지 후보입니다.
-              </div>
-              <div style={{ display: "grid", gap: 8, marginTop: 12 }}>
-                {candidates.map((c, i) => (
-                  <button
-                    key={i}
-                    type="button"
-                    className="tele__end_modal__btn tele__end_modal__btn--outline"
-                    onClick={() => pickCandidate(String(c || "").trim())}
-                    title="이 문장 선택"
-                  >
-                    {c}
-                  </button>
-                ))}
-              </div>
-              <div className="tele__end_modal__actions" style={{ marginTop: 10 }}>
-                <button
-                  type="button"
-                  className="tele__end_modal__btn tele__end_modal__btn--primary"
-                  onClick={() => setCandidates(null)}
-                >
-                  닫기
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
+  <div className="tele__end_modal__backdrop" role="presentation">
+    <div
+      className="tele__end_modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="candTitle"
+      style={{ position: "relative", padding: "32px 24px 48px" }}
+    >
+      {/* 닫기(X) 버튼 */}
+      <button
+        onClick={() => setCandidates(null)}
+        style={{
+          position: "absolute",
+          top: 16,
+          right: 16,
+          background: "none",
+          border: "none",
+          fontSize: 20,
+          color: "#6B7280",
+          cursor: "pointer",
+        }}
+        aria-label="닫기"
+      >
+        ×
+      </button>
+
+      <h3 id="candTitle" className="tele__end_modal__title">
+        가장 가까운 문장을 선택해 주세요
+      </h3>
+      <div className="tele__end_modal__desc">
+        환경과 맥락을 반영한 3가지 후보입니다.
+      </div>
+
+      {/* 후보 버튼 */}
+      <div style={{ display: "grid", gap: 10, marginTop: 20 }}>
+        {candidates.map((c, i) => (
+          <button
+            key={i}
+            type="button"
+            onClick={() => setSelectedCandidate(c)}
+            className={`tele__end_modal__btn ${
+              selectedCandidate === c
+                ? "tele__end_modal__btn--active"
+                : "tele__end_modal__btn--outline"
+            }`}
+            style={{
+              borderRadius: "9999px",
+              padding: "14px 20px",
+              fontWeight: 500,
+              transition: "all 0.2s ease",
+              border: "2px solid #7B89FF",
+              backgroundColor:
+                selectedCandidate === c ? "#7B89FF" : "transparent",
+              color: selectedCandidate === c ? "white" : "#3F3F46",
+            }}
+          >
+            {c}
+          </button>
+        ))}
+      </div>
+
+      {/* 전송 버튼 - 하단 중앙 배치 */}
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "center",
+          marginTop: 36,
+        }}
+      >
+        <button
+          type="button"
+          disabled={!selectedCandidate}
+          onClick={() => {
+            if (!selectedCandidate) return;
+            pickCandidate(selectedCandidate);
+          }}
+          className="tele__end_modal__btn tele__end_modal__btn--primary"
+          style={{
+            width: "30%",
+            minWidth: "120px",
+            backgroundColor: selectedCandidate ? "#7B89FF" : "#D1D5DB",
+            color: "white",
+            border: "none",
+            borderRadius: "9999px",
+            padding: "12px 0",
+            fontWeight: 600,
+            cursor: selectedCandidate ? "pointer" : "not-allowed",
+            transition: "background 0.2s ease",
+          }}
+        >
+          전송하기
+        </button>
+      </div>
+    </div>
+  </div>
+)}
+
 
         {/* 종료 모달 */}
         {showEndModal && (

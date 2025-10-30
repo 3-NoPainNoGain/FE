@@ -54,20 +54,31 @@ export async function cancelReservation(reservationId) {
 }
 
 // WebRTC 참가 (공용): POST /api/v2/telemed/{reservationId}/join
+// src/services/reservation.js
 export async function joinReservation(reservationId, roleHint) {
-  const { data } = await api.post(`/api/v2/telemed/${reservationId}/join`);
+  const token = localStorage.getItem("accessToken");
+  const { data } = await api.post(
+    `/api/v2/telemed/${reservationId}/join`,
+    { roleHint }, // body로 함께 전송
+    {
+      headers: { Authorization: `Bearer ${token}` },
+    }
+  );
+
   if (!data?.isSuccess) throw new Error(data?.message || "예약 참가 실패");
   const r = data.results || {};
   return {
-    roomId: r.roomId ?? r.room_id ?? `${reservationId}`,
-    role: r.role ?? r.userRole ?? r.user_role ?? (roleHint === "doctor" ? "ROLE_DOCTOR" : "ROLE_PATIENT"),
-    status: r.status ?? r.sessionStatus ?? r.session_status ?? "WAITING",
-    wsUrl: r.wsUrl ?? r.ws_url ?? "wss://handdoc.store/ws/signaling",
+    roomId: r.roomId ?? `${reservationId}`,
+    role:
+      r.role ??
+      (roleHint === "doctor" ? "ROLE_DOCTOR" : "ROLE_PATIENT"),
+    status: r.status ?? "WAITING",
+    wsUrl: r.wsUrl ?? "wss://handdoc.store/ws/signaling",
     iceServers:
-      r.iceServers ??
-      r.ice_servers ?? [
+      r.iceServers ?? [
         { urls: "stun:stun.l.google.com:19302" },
         { urls: "stun:stun1.l.google.com:19302" },
       ],
   };
 }
+

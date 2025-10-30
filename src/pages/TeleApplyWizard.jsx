@@ -61,11 +61,19 @@ const SYMPTOM_TO_ENUM = {
   두통: "HEADACHE",
   발열: "FEVER",
 };
-function featureModeToOptions(mode) {
-  if (mode === "voice") return ["VOICE_TO_TEXT"];
-  if (mode === "voice+sign") return ["VOICE_TO_TEXT", "SIGN_TO_TEXT"];
-  return [];
+function featureModeToOptions(mode, voiceSub) {
+  if (mode === "voice") {
+    // voiceSub이 normal이면 NORMAL_VOICE_TO_TEXT, assist면 ABNORMAL_VOICE_TO_TEXT
+    return voiceSub === "assist"
+      ? "ABNORMAL_VOICE_TO_TEXT"
+      : "NORMAL_VOICE_TO_TEXT";
+  }
+  if (mode === "voice+sign") {
+    return "SIGN_TO_TEXT";
+  }
+  return null;
 }
+
 
 /* 스텝퍼 */
 function Stepper({ step }) {
@@ -207,7 +215,7 @@ export default function TeleApplyWizard() {
     if (dayTab === "tomorrow") baseDate.setDate(baseDate.getDate() + 1);
     const slotDate = baseDate.toISOString().slice(0, 10);
 
-    const interpretationOption = featureModeToOptions(featureMode);
+    const interpretationOption = featureModeToOptions(featureMode, voiceSub);
     const symptomEnum = SYMPTOM_TO_ENUM[symptom] ?? "HEADACHE";
     const symptomDuration = unknown ? null : Number(duration || 0);
     const trimmedMemo = (memo || "").trim();

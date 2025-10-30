@@ -220,10 +220,12 @@ export default function ReservationConfirm() {
                 <div className="form__row">
                   <label className="form__label">선택한 기능</label>
                   <div className="form__value">
-                    {selectedOptions.length
-                      ? selectedOptions.join(", ")
-                      : "선택 없음"}
-                  </div>
+  {Array.isArray(selectedOptions)
+    ? (selectedOptions.length ? selectedOptions.join(", ") : "선택 없음")
+    : selectedOptions || "선택 없음"}
+</div>
+
+
                 </div>
               </>
             )}

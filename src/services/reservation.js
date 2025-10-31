@@ -73,7 +73,11 @@ export async function joinReservation(reservationId, roleHint) {
       r.role ??
       (roleHint === "doctor" ? "ROLE_DOCTOR" : "ROLE_PATIENT"),
     status: r.status ?? "WAITING",
-    wsUrl: r.wsUrl ?? "wss://handdoc.store/ws/signaling",
+     wsUrl:
+     r.wsUrl ??
+     r.ws_url ??
+     process.env.REACT_APP_SIGNALING_URL ??
+     `${process.env.REACT_APP_WS_URL?.replace(/\/$/, "")}/signaling`,
     iceServers:
       r.iceServers ?? [
         { urls: "stun:stun.l.google.com:19302" },
